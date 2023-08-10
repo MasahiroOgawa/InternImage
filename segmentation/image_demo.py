@@ -16,6 +16,9 @@ import os
 
 def test_single_image(model, img_name, out_dir, color_palette, opacity):
     result = inference_segmentor(model, img_name)
+
+    # debug
+    print(f"result.pred_sem_seg: {result.pred_sem_seg}")
     
     # show the results
     if hasattr(model, 'module'):
