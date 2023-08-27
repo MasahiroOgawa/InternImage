@@ -26,13 +26,19 @@ def test_single_image(model, img_name, out_dir, color_palette, opacity):
     img = model.show_result(img_name, result,
                             palette=color_palette,
                             show=False, opacity=opacity)
-    
-    # save the results
+
+    # save the result image
     mmcv.mkdir_or_exist(out_dir)
     out_path = osp.join(out_dir, osp.basename(img_name))
     cv2.imwrite(out_path, img)
     print(f"Result is save at {out_path}")
-
+    
+    # save the result as a file
+    out_path = osp.join(out_dir, osp.basename(img_name).split('.')[0] + '.txt')
+    with open(out_path, 'w') as f:
+        f.write(str(result))
+    print(f"Result is save at {out_path}")
+    
 
 def main():
     parser = ArgumentParser()
