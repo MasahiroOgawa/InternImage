@@ -18,7 +18,8 @@ def test_single_image(model, img_name, out_dir, color_palette, opacity):
     result = inference_segmentor(model, img_name)
 
     # debug
-    print(f"result: {result}")
+    print(f"result shape: {result[0].shape}")
+    print(f"result: {result[0]}")
     
     # show the results
     if hasattr(model, 'module'):
@@ -35,8 +36,7 @@ def test_single_image(model, img_name, out_dir, color_palette, opacity):
     
     # save the result as a file
     out_path = osp.join(out_dir, osp.basename(img_name).split('.')[0] + '.txt')
-    with open(out_path, 'w') as f:
-        f.write(str(result))
+    result[0].tofile(out_path)
     print(f"Result is save at {out_path}")
     
 
