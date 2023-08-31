@@ -12,6 +12,7 @@ from mmseg.core import get_classes
 import cv2
 import os.path as osp
 import os
+import numpy as np
 
 
 def test_single_image(model, img_name, out_dir, color_palette, opacity):
@@ -35,9 +36,13 @@ def test_single_image(model, img_name, out_dir, color_palette, opacity):
     print(f"Result is save at {out_path}")
     
     # save the result as a file
-    out_path = osp.join(out_dir, osp.basename(img_name).split('.')[0] + '.txt')
-    result[0].tofile(out_path)
+    out_path = osp.join(out_dir, osp.basename(img_name).split('.')[0] + '.npy')
+    np.save(out_path, result[0])
     print(f"Result is save at {out_path}")
+
+    #debug read the result file
+    tmp_read = np.load(out_path)
+    print(f"tmp_read: {tmp_read}")
     
 
 def main():
