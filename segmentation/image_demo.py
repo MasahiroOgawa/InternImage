@@ -13,14 +13,11 @@ import cv2
 import os.path as osp
 import os
 import numpy as np
+import json
 
 
 def test_single_image(model, img_name, out_dir, color_palette, opacity):
     result = inference_segmentor(model, img_name)
-
-    # debug
-    print(f"result shape: {result[0].shape}")
-    print(f"result: {result[0]}")
 
     # show the results
     if hasattr(model, 'module'):
@@ -73,6 +70,10 @@ def main():
         model.CLASSES = checkpoint['meta']['CLASSES']
     else:
         model.CLASSES = get_classes(args.palette)
+
+    # dump classes
+    print(f"model.CLASSES: {model.CLASSES}")
+    json.dump(model.CLASSES, open(osp.join(args.out, "classes.json"), "w"))
 
     # check arg.img is directory of a single image.
     if osp.isdir(args.img):
