@@ -21,7 +21,7 @@ def test_single_image(model, img_name, out_dir, color_palette, opacity):
     # debug
     print(f"result shape: {result[0].shape}")
     print(f"result: {result[0]}")
-    
+
     # show the results
     if hasattr(model, 'module'):
         model = model.module
@@ -33,21 +33,22 @@ def test_single_image(model, img_name, out_dir, color_palette, opacity):
     mmcv.mkdir_or_exist(out_dir)
     out_path = osp.join(out_dir, osp.basename(img_name))
     cv2.imwrite(out_path, img)
-    print(f"Result is save at {out_path}")
-    
+    print(f"Result image is save at {out_path}")
+
     # save the result as a file
     out_path = osp.join(out_dir, osp.basename(img_name).split('.')[0] + '.npy')
     np.save(out_path, result[0])
-    print(f"Result is save at {out_path}")
+    print(f"Result mask is save at {out_path}")
 
-    #debug read the result file
-    tmp_read = np.load(out_path)
-    print(f"tmp_read: {tmp_read}")
-    
+    # #debug read the result file
+    # tmp_read = np.load(out_path)
+    # print(f"tmp_read: {tmp_read}")
+
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument('img', help='Image file or a directory contains images')
+    parser.add_argument(
+        'img', help='Image file or a directory contains images')
     parser.add_argument('config', help='Config file')
     parser.add_argument('checkpoint', help='Checkpoint file')
     parser.add_argument('--out', type=str, default="demo", help='out dir')
@@ -72,13 +73,16 @@ def main():
         model.CLASSES = checkpoint['meta']['CLASSES']
     else:
         model.CLASSES = get_classes(args.palette)
-        
+
     # check arg.img is directory of a single image.
     if osp.isdir(args.img):
         for img in os.listdir(args.img):
-            test_single_image(model, osp.join(args.img, img), args.out, get_palette(args.palette), args.opacity)
+            test_single_image(model, osp.join(args.img, img),
+                              args.out, get_palette(args.palette), args.opacity)
     else:
-        test_single_image(model, args.img, args.out, get_palette(args.palette), args.opacity)
+        test_single_image(model, args.img, args.out,
+                          get_palette(args.palette), args.opacity)
+
 
 if __name__ == '__main__':
     main()
