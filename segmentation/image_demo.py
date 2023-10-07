@@ -71,9 +71,9 @@ def main():
     else:
         model.CLASSES = get_classes(args.palette)
 
-    # dump classes
+    # dump class names
     print(f"model.CLASSES: {model.CLASSES}")
-    json.dump(model.CLASSES, open(osp.join(args.out, "classes.json"), "w"))
+    json.dump(model.CLASSES, open(osp.join(args.out, "class_names.json"), "w"))
 
     # check arg.img is directory of a single image.
     if osp.isdir(args.img):
