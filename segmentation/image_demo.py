@@ -1,8 +1,6 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 from argparse import ArgumentParser
-
 import mmcv
-
 import mmcv_custom   # noqa: F401,F403
 import mmseg_custom   # noqa: F401,F403
 from mmseg.apis import inference_segmentor, init_segmentor, show_result_pyplot
@@ -17,6 +15,12 @@ import json
 
 
 def test_single_image(model, img_name, out_dir, color_palette, opacity):
+    # check img_name is an image file or not
+    assumed_imgformat = ('.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif')
+    if (not img_name.lower().endswith(assumed_imgformat)):
+        print(f"Skip {img_name} because it is not an image file.")
+        return
+
     result = inference_segmentor(model, img_name)
 
     # show the results
@@ -26,11 +30,11 @@ def test_single_image(model, img_name, out_dir, color_palette, opacity):
                             palette=color_palette,
                             show=False, opacity=opacity)
 
-    # save the result image
+    # save the results
     mmcv.mkdir_or_exist(out_dir)
     out_path = osp.join(out_dir, osp.basename(img_name))
     cv2.imwrite(out_path, img)
-    print(f"Result image is save at {out_path}")
+    print(f"Result is save at {out_path}")
 
     # save the result as a file
     out_path = osp.join(out_dir, osp.basename(img_name).split('.')[0] + '.npy')
@@ -77,7 +81,7 @@ def main():
 
     # check arg.img is directory of a single image.
     if osp.isdir(args.img):
-        for img in os.listdir(args.img):
+        for img in sorted(os.listdir(args.img)):
             test_single_image(model, osp.join(args.img, img),
                               args.out, get_palette(args.palette), args.opacity)
     else:

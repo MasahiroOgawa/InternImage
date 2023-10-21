@@ -30,7 +30,7 @@ class Mask2FormerHead(BaseDecodeHead):
         out_channels (int): Number of channels for output.
         num_classes (int): Number of classes.
         num_things_classes (int): Number of things.
-+       num_stuff_classes (int): Number of stuff.
+        num_stuff_classes (int): Number of stuff.
         num_queries (int): Number of query in Transformer decoder.
         pixel_decoder (:obj:`mmcv.ConfigDict` | dict): Config for pixel
             decoder. Defaults to None.
