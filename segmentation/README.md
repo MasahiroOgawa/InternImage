@@ -29,6 +29,16 @@ conda env create -f environment.yml
 conda activate internimage
 ```
 
+- Install other requirements:
+
+**Note** conda opencv will break torchvision as not to support GPU, so we need to install opencv using pip.
+```
+pip install opencv-python
+pip install -U openmim
+mim install mmcv-full==1.5.0
+mim install mmsegmentation==0.27.0
+pip install timm==0.6.11 mmdet==2.28.1
+```
 
 - Compile CUDA operators
 ```bash
@@ -39,6 +49,11 @@ python test.py
 ```
 - You can also install the operator using .whl files
 [DCNv3-1.0-whl](https://github.com/OpenGVLab/InternImage/releases/tag/whl_files)
+So,
+```
+wget https://github.com/OpenGVLab/InternImage/releases/download/whl_files/DCNv3-1.0+cu113torch1.11.0-cp37-cp37m-linux_x86_64.whl
+pip install DCNv3-1.0+cu113torch1.11.0-cp37-cp37m-linux_x86_64.whl
+```
 
 
 ### Inference
