@@ -29,7 +29,7 @@ conda env create -f environment.yml
 conda activate internimage
 ```
 
-- Install other requirements:
+**Note** If you fail to create conda env, please install below requirements manually:
 
 **Note** conda opencv will break torchvision as not to support GPU, so we need to install opencv using pip.
 ```
@@ -38,6 +38,10 @@ pip install -U openmim
 mim install mmcv-full==1.5.0
 mim install mmsegmentation==0.27.0
 pip install timm==0.6.11 mmdet==2.28.1
+```
+Then, update conda env again
+```
+conda env update -f environment.yml
 ```
 
 - Compile CUDA operators
