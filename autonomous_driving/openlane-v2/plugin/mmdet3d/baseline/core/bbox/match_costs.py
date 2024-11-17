@@ -1,5 +1,5 @@
 # ==============================================================================
-# Binaries and/or source for the following packages or projects 
+# Binaries and/or source for the following packages or projects
 # are presented under one or more of the following open source licenses:
 # match_costs.py    The OpenLane-V2 Dataset Authors    Apache License, Version 2.0
 #
@@ -33,7 +33,8 @@ class LaneL1Cost:
     Adapted from https://github.com/open-mmlab/mmdetection/blob/master/mmdet/core/bbox/match_costs/match_cost.py#L11.
 
     """
-    def __init__(self, weight=1.):
+
+    def __init__(self, weight=1.0):
         self.weight = weight
 
     def __call__(self, lane_pred, gt_lanes):

@@ -1,5 +1,5 @@
 # ==============================================================================
-# Binaries and/or source for the following packages or projects 
+# Binaries and/or source for the following packages or projects
 # are presented under one or more of the following open source licenses:
 # transforms.py    The OpenLane-V2 Dataset Authors    Apache License, Version 2.0
 #
@@ -30,58 +30,59 @@ from mmdet.datasets import PIPELINES
 
 @PIPELINES.register_module()
 class ResizeFrontView:
-
     def __init__(self):
         pass
 
     def __call__(self, results):
-        assert 'ring_front_center' in results['img_paths'][0], \
-            'the first image should be the front view'
+        assert (
+            "ring_front_center" in results["img_paths"][0]
+        ), "the first image should be the front view"
 
-        #image
-        front_view = results['img'][0]
+        # image
+        front_view = results["img"][0]
         h, w, _ = front_view.shape
         resiezed_front_view, w_scale, h_scale = mmcv.imresize(
             front_view,
             (h, w),
             return_scale=True,
         )
-        results['img'][0] = resiezed_front_view
-        results['img_shape'][0] = resiezed_front_view.shape
+        results["img"][0] = resiezed_front_view
+        results["img_shape"][0] = resiezed_front_view.shape
 
         # gt
         scale_factor = np.array(
             [w_scale, h_scale, w_scale, h_scale],
             dtype=np.float32,
         )
-        results['scale_factor'] = scale_factor
-        if 'gt_te' in results:
-            results['gt_te'] = results['gt_te'] * results['scale_factor']
+        results["scale_factor"] = scale_factor
+        if "gt_te" in results:
+            results["gt_te"] = results["gt_te"] * results["scale_factor"]
 
         # intrinsic
-        lidar2cam_r = results['rots'][0]
-        lidar2cam_t = (-results['trans'][0]) @ lidar2cam_r.T
+        lidar2cam_r = results["rots"][0]
+        lidar2cam_t = (-results["trans"][0]) @ lidar2cam_r.T
         lidar2cam_rt = np.eye(4)
         lidar2cam_rt[:3, :3] = lidar2cam_r.T
         lidar2cam_rt[3, :3] = -lidar2cam_t
 
-        intrinsic = results['cam2imgs'][0]
+        intrinsic = results["cam2imgs"][0]
         viewpad = np.eye(4)
-        viewpad[:intrinsic.shape[0], :intrinsic.shape[1]] = intrinsic
+        viewpad[: intrinsic.shape[0], : intrinsic.shape[1]] = intrinsic
 
         cam_s = np.eye(4)
         cam_s[0, 0] *= w_scale
         cam_s[1, 1] *= h_scale
 
-        viewpad = cam_s @ viewpad 
-        intrinsic = viewpad[:intrinsic.shape[0], :intrinsic.shape[1]]
-        lidar2img_rt = (viewpad @ lidar2cam_rt.T)
+        viewpad = cam_s @ viewpad
+        intrinsic = viewpad[: intrinsic.shape[0], : intrinsic.shape[1]]
+        lidar2img_rt = viewpad @ lidar2cam_rt.T
 
-        results['cam_intrinsic'][0] = viewpad
-        results['lidar2img'][0] = lidar2img_rt
-        results['cam2imgs'][0] = intrinsic
+        results["cam_intrinsic"][0] = viewpad
+        results["lidar2img"][0] = lidar2img_rt
+        results["cam2imgs"][0] = intrinsic
 
         return results
+
 
 @PIPELINES.register_module()
 class NormalizeMultiviewImage:
@@ -104,7 +105,6 @@ class NormalizeMultiviewImage:
         self.std = np.array(std, dtype=np.float32)
         self.to_rgb = to_rgb
 
-
     def __call__(self, results):
         """Call function to normalize images.
         Args:
@@ -114,15 +114,18 @@ class NormalizeMultiviewImage:
                 result dict.
         """
 
-        results['img'] = [mmcv.imnormalize(img, self.mean, self.std, self.to_rgb) for img in results['img']]
-        results['img_norm_cfg'] = dict(
-            mean=self.mean, std=self.std, to_rgb=self.to_rgb)
+        results["img"] = [
+            mmcv.imnormalize(img, self.mean, self.std, self.to_rgb)
+            for img in results["img"]
+        ]
+        results["img_norm_cfg"] = dict(mean=self.mean, std=self.std, to_rgb=self.to_rgb)
         return results
 
     def __repr__(self):
         repr_str = self.__class__.__name__
-        repr_str += f'(mean={self.mean}, std={self.std}, to_rgb={self.to_rgb})'
+        repr_str += f"(mean={self.mean}, std={self.std}, to_rgb={self.to_rgb})"
         return repr_str
+
 
 @PIPELINES.register_module()
 class PhotoMetricDistortionMultiViewImage:
@@ -130,7 +133,7 @@ class PhotoMetricDistortionMultiViewImage:
     Notes
     -----
     Adapted from https://github.com/fundamentalvision/BEVFormer/blob/master/projects/mmdet3d_plugin/datasets/pipelines/transform_3d.py#L99.
-    
+
     Apply photometric distortion to image sequentially, every transformation
     is applied with a probability of 0.5. The position of random contrast is in
     second or second to last.
@@ -149,11 +152,13 @@ class PhotoMetricDistortionMultiViewImage:
         hue_delta (int): delta of hue.
     """
 
-    def __init__(self,
-                 brightness_delta=32,
-                 contrast_range=(0.5, 1.5),
-                 saturation_range=(0.5, 1.5),
-                 hue_delta=18):
+    def __init__(
+        self,
+        brightness_delta=32,
+        contrast_range=(0.5, 1.5),
+        saturation_range=(0.5, 1.5),
+        hue_delta=18,
+    ):
         self.brightness_delta = brightness_delta
         self.contrast_lower, self.contrast_upper = contrast_range
         self.saturation_lower, self.saturation_upper = saturation_range
@@ -166,16 +171,16 @@ class PhotoMetricDistortionMultiViewImage:
         Returns:
             dict: Result dict with images distorted.
         """
-        imgs = results['img']
+        imgs = results["img"]
         new_imgs = []
         for img in imgs:
-            assert img.dtype == np.float32, \
-                'PhotoMetricDistortion needs the input image of dtype np.float32,'\
+            assert img.dtype == np.float32, (
+                "PhotoMetricDistortion needs the input image of dtype np.float32,"
                 ' please set "to_float32=True" in "LoadImageFromFile" pipeline'
+            )
             # random brightness
             if random.randint(2):
-                delta = random.uniform(-self.brightness_delta,
-                                    self.brightness_delta)
+                delta = random.uniform(-self.brightness_delta, self.brightness_delta)
                 img += delta
 
             # mode == 0 --> do random contrast first
@@ -183,8 +188,7 @@ class PhotoMetricDistortionMultiViewImage:
             mode = random.randint(2)
             if mode == 1:
                 if random.randint(2):
-                    alpha = random.uniform(self.contrast_lower,
-                                        self.contrast_upper)
+                    alpha = random.uniform(self.contrast_lower, self.contrast_upper)
                     img *= alpha
 
             # convert color from BGR to HSV
@@ -192,8 +196,9 @@ class PhotoMetricDistortionMultiViewImage:
 
             # random saturation
             if random.randint(2):
-                img[..., 1] *= random.uniform(self.saturation_lower,
-                                            self.saturation_upper)
+                img[..., 1] *= random.uniform(
+                    self.saturation_lower, self.saturation_upper
+                )
 
             # random hue
             if random.randint(2):
@@ -207,69 +212,78 @@ class PhotoMetricDistortionMultiViewImage:
             # random contrast
             if mode == 0:
                 if random.randint(2):
-                    alpha = random.uniform(self.contrast_lower,
-                                        self.contrast_upper)
+                    alpha = random.uniform(self.contrast_lower, self.contrast_upper)
                     img *= alpha
 
             # randomly swap channels
             if random.randint(2):
                 img = img[..., random.permutation(3)]
             new_imgs.append(img)
-        results['img'] = new_imgs
+        results["img"] = new_imgs
         return results
 
     def __repr__(self):
         repr_str = self.__class__.__name__
-        repr_str += f'(\nbrightness_delta={self.brightness_delta},\n'
-        repr_str += 'contrast_range='
-        repr_str += f'{(self.contrast_lower, self.contrast_upper)},\n'
-        repr_str += 'saturation_range='
-        repr_str += f'{(self.saturation_lower, self.saturation_upper)},\n'
-        repr_str += f'hue_delta={self.hue_delta})'
+        repr_str += f"(\nbrightness_delta={self.brightness_delta},\n"
+        repr_str += "contrast_range="
+        repr_str += f"{(self.contrast_lower, self.contrast_upper)},\n"
+        repr_str += "saturation_range="
+        repr_str += f"{(self.saturation_lower, self.saturation_upper)},\n"
+        repr_str += f"hue_delta={self.hue_delta})"
         return repr_str
+
 
 @PIPELINES.register_module()
 class CustomPadMultiViewImage:
-
     def __init__(self, size_divisor=None, pad_val=0):
         self.size_divisor = size_divisor
         self.pad_val = pad_val
 
     def __call__(self, results):
-        max_h = max([img.shape[0] for img in results['img']])
-        max_w = max([img.shape[1] for img in results['img']])
-        padded_img = [mmcv.impad(img, shape=(max_h, max_w), pad_val=self.pad_val) for img in results['img']]
+        max_h = max([img.shape[0] for img in results["img"]])
+        max_w = max([img.shape[1] for img in results["img"]])
+        padded_img = [
+            mmcv.impad(img, shape=(max_h, max_w), pad_val=self.pad_val)
+            for img in results["img"]
+        ]
         if self.size_divisor is not None:
-            padded_img = [mmcv.impad_to_multiple(
-                img, self.size_divisor, pad_val=self.pad_val) for img in padded_img]
-        
-        results['img'] = padded_img
-        results['pad_shape'] = [img.shape for img in padded_img]
-        results['pad_fixed_size'] = None
-        results['pad_size_divisor'] = self.size_divisor
+            padded_img = [
+                mmcv.impad_to_multiple(img, self.size_divisor, pad_val=self.pad_val)
+                for img in padded_img
+            ]
+
+        results["img"] = padded_img
+        results["pad_shape"] = [img.shape for img in padded_img]
+        results["pad_fixed_size"] = None
+        results["pad_size_divisor"] = self.size_divisor
 
         return results
 
     def __repr__(self):
         repr_str = self.__class__.__name__
-        repr_str += f'size_divisor={self.size_divisor}, '
-        repr_str += f'pad_val={self.pad_val})'
+        repr_str += f"size_divisor={self.size_divisor}, "
+        repr_str += f"pad_val={self.pad_val})"
         return repr_str
+
 
 @PIPELINES.register_module()
 class CustomParameterizeLane:
-
     def __init__(self, method, method_para):
-        method_list = ['bezier', 'polygon', 'bezier_Direction_attribute', 'bezier_Endpointfixed']
+        method_list = [
+            "bezier",
+            "polygon",
+            "bezier_Direction_attribute",
+            "bezier_Endpointfixed",
+        ]
         self.method = method
         if not self.method in method_list:
             raise Exception("Not implemented!")
         self.method_para = method_para
 
     def __call__(self, results):
-        centerlines = results['gt_lc']
+        centerlines = results["gt_lc"]
         para_centerlines = getattr(self, self.method)(centerlines, **self.method_para)
-        results['gt_lc'] = para_centerlines
+        results["gt_lc"] = para_centerlines
         return results
 
     def comb(self, n, k):
@@ -281,7 +295,11 @@ class CustomParameterizeLane:
         t = np.arange(n_points) / (n_points - 1)
         for i in range(n_points):
             for j in range(n_control):
-                A[i, j] = self.comb(n_control - 1, j) * np.power(1 - t[i], n_control - 1 - j) * np.power(t[i], j)
+                A[i, j] = (
+                    self.comb(n_control - 1, j)
+                    * np.power(1 - t[i], n_control - 1 - j)
+                    * np.power(t[i], j)
+                )
         conts = np.linalg.lstsq(A, points, rcond=None)
         return conts
 
@@ -291,10 +309,18 @@ class CustomParameterizeLane:
         t = np.arange(n_points) / (n_points - 1)
         for i in range(n_points):
             for j in range(n_control):
-                A[i, j] = self.comb(n_control - 1, j) * np.power(1 - t[i], n_control - 1 - j) * np.power(t[i], j)
+                A[i, j] = (
+                    self.comb(n_control - 1, j)
+                    * np.power(1 - t[i], n_control - 1 - j)
+                    * np.power(t[i], j)
+                )
         A_BE = A[1:-1, 1:-1]
         _points = points[1:-1]
-        _points = _points - A[1:-1, 0].reshape(-1, 1) @ points[0].reshape(1, -1) - A[1:-1, -1].reshape(-1, 1) @ points[-1].reshape(1, -1)
+        _points = (
+            _points
+            - A[1:-1, 0].reshape(-1, 1) @ points[0].reshape(1, -1)
+            - A[1:-1, -1].reshape(-1, 1) @ points[-1].reshape(1, -1)
+        )
 
         conts = np.linalg.lstsq(A_BE, _points, rcond=None)
 
@@ -306,7 +332,6 @@ class CustomParameterizeLane:
         return control_points
 
     def bezier(self, input_data, n_control=2):
-
         coeffs_list = []
         for idx, centerline in enumerate(input_data):
             sorted_x = np.array(centerline[:, 1])
@@ -315,8 +340,12 @@ class CustomParameterizeLane:
             res = self.fit_bezier(points, n_control)[0]
             start_res = res[0]
             end_res = res[-1]
-            first_diff = (np.sum(np.square(start_res - points[0]))) + (np.sum(np.square(end_res - points[-1])))
-            second_diff = (np.sum(np.square(start_res - points[-1]))) + (np.sum(np.square(end_res - points[0])))
+            first_diff = (np.sum(np.square(start_res - points[0]))) + (
+                np.sum(np.square(end_res - points[-1]))
+            )
+            second_diff = (np.sum(np.square(start_res - points[-1]))) + (
+                np.sum(np.square(end_res - points[0]))
+            )
 
             if first_diff <= second_diff:
                 fin_res = res
@@ -342,8 +371,12 @@ class CustomParameterizeLane:
             fin_res = np.clip(res, 0, 1)
             start_res = res[0]
             end_res = res[-1]
-            first_diff = (np.sum(np.square(start_res - points[0]))) + (np.sum(np.square(end_res - points[-1])))
-            second_diff = (np.sum(np.square(start_res - points[-1]))) + (np.sum(np.square(end_res - points[0])))
+            first_diff = (np.sum(np.square(start_res - points[0]))) + (
+                np.sum(np.square(end_res - points[-1]))
+            )
+            second_diff = (np.sum(np.square(start_res - points[-1]))) + (
+                np.sum(np.square(end_res - points[0]))
+            )
             if first_diff <= second_diff:
                 da = 0
             else:
@@ -360,7 +393,7 @@ class CustomParameterizeLane:
             coeffs_list.append(coeffs)
         return np.array(coeffs_list, dtype=np.float32)
 
-    def polygon(self, input_data, key_rep='Bounding Box'):
+    def polygon(self, input_data, key_rep="Bounding Box"):
         keypoints = []
         for idx, centerline in enumerate(input_data):
             centerline[:, 1] = centerline[:, 1]
@@ -368,13 +401,19 @@ class CustomParameterizeLane:
             sorted_x = np.array(centerline[:, 1])
             sorted_y = np.array(centerline[:, 0])
             points = np.array(list(zip(sorted_x, sorted_y)))
-            if key_rep not in ['Bounding Box', 'SME', 'Extreme Points']:
+            if key_rep not in ["Bounding Box", "SME", "Extreme Points"]:
                 raise Exception(f"{key_rep} not existed!")
-            elif key_rep == 'Bounding Box':
+            elif key_rep == "Bounding Box":
                 res = np.array(
-                    [points[:, 0].min(), points[:, 1].min(), points[:, 0].max(), points[:, 1].max()]).reshape((2, 2))
+                    [
+                        points[:, 0].min(),
+                        points[:, 1].min(),
+                        points[:, 0].max(),
+                        points[:, 1].max(),
+                    ]
+                ).reshape((2, 2))
                 keypoints.append(np.reshape(np.float32(res), (-1)))
-            elif key_rep == 'SME':
+            elif key_rep == "SME":
                 res = np.array([points[0], points[-1], points[int(len(points) / 2)]])
                 keypoints.append(np.reshape(np.float32(res), (-1)))
             else:
@@ -387,6 +426,12 @@ class CustomParameterizeLane:
                 min_y = np.min([points[:, 1] for p in points])
                 ind_botton = np.where(points[:, 1] == min_y)
                 res = np.array(
-                    [points[ind_left[0][0]], points[ind_right[0][0]], points[ind_top[0][0]], points[ind_botton[0][0]]])
+                    [
+                        points[ind_left[0][0]],
+                        points[ind_right[0][0]],
+                        points[ind_top[0][0]],
+                        points[ind_botton[0][0]],
+                    ]
+                )
                 keypoints.append(np.reshape(np.float32(res), (-1)))
         return np.array(keypoints)

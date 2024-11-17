@@ -13,7 +13,7 @@ from pathlib import Path
 from copy import deepcopy
 from functools import reduce
 
-np.seterr(divide='ignore', invalid='ignore')
+np.seterr(divide="ignore", invalid="ignore")
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 
@@ -46,20 +46,37 @@ def getCellCoordinates(points, voxelSize):
 
 def getNumUniqueCells(cells):
     M = cells.max() + 1
-    return np.unique(cells[:, 0] + M * cells[:, 1] + M ** 2 * cells[:, 2]).shape[0]
+    return np.unique(cells[:, 0] + M * cells[:, 1] + M**2 * cells[:, 2]).shape[0]
 
 
-class Metric_mIoU():
-    def __init__(self,
-                 save_dir='.',
-                 num_classes=18,
-                 use_lidar_mask=False,
-                 use_image_mask=False,
-                 ):
-        self.class_names = ['others','barrier', 'bicycle', 'bus', 'car', 'construction_vehicle',
-                            'motorcycle', 'pedestrian', 'traffic_cone', 'trailer', 'truck',
-                            'driveable_surface', 'other_flat', 'sidewalk',
-                            'terrain', 'manmade', 'vegetation','free']
+class Metric_mIoU:
+    def __init__(
+        self,
+        save_dir=".",
+        num_classes=18,
+        use_lidar_mask=False,
+        use_image_mask=False,
+    ):
+        self.class_names = [
+            "others",
+            "barrier",
+            "bicycle",
+            "bus",
+            "car",
+            "construction_vehicle",
+            "motorcycle",
+            "pedestrian",
+            "traffic_cone",
+            "trailer",
+            "truck",
+            "driveable_surface",
+            "other_flat",
+            "sidewalk",
+            "terrain",
+            "manmade",
+            "vegetation",
+            "free",
+        ]
         self.save_dir = save_dir
         self.use_lidar_mask = use_lidar_mask
         self.use_image_mask = use_image_mask
@@ -68,9 +85,18 @@ class Metric_mIoU():
         self.point_cloud_range = [-40.0, -40.0, -1.0, 40.0, 40.0, 5.4]
         self.occupancy_size = [0.4, 0.4, 0.4]
         self.voxel_size = 0.4
-        self.occ_xdim = int((self.point_cloud_range[3] - self.point_cloud_range[0]) / self.occupancy_size[0])
-        self.occ_ydim = int((self.point_cloud_range[4] - self.point_cloud_range[1]) / self.occupancy_size[1])
-        self.occ_zdim = int((self.point_cloud_range[5] - self.point_cloud_range[2]) / self.occupancy_size[2])
+        self.occ_xdim = int(
+            (self.point_cloud_range[3] - self.point_cloud_range[0])
+            / self.occupancy_size[0]
+        )
+        self.occ_ydim = int(
+            (self.point_cloud_range[4] - self.point_cloud_range[1])
+            / self.occupancy_size[1]
+        )
+        self.occ_zdim = int(
+            (self.point_cloud_range[5] - self.point_cloud_range[2])
+            / self.occupancy_size[2]
+        )
         self.voxel_num = self.occ_xdim * self.occ_ydim * self.occ_zdim
         self.hist = np.zeros((self.num_classes, self.num_classes))
         self.cnt = 0
@@ -97,19 +123,20 @@ class Metric_mIoU():
 
         return (
             np.bincount(
-                n_cl * gt[k].astype(int) + pred[k].astype(int), minlength=n_cl ** 2
+                n_cl * gt[k].astype(int) + pred[k].astype(int), minlength=n_cl**2
             ).reshape(n_cl, n_cl),
             correct,
             labeled,
         )
 
     def per_class_iu(self, hist):
-
         return np.diag(hist) / (hist.sum(1) + hist.sum(0) - np.diag(hist))
 
     def compute_mIoU(self, pred, label, n_classes):
         hist = np.zeros((n_classes, n_classes))
-        new_hist, correct, labeled = self.hist_info(n_classes, pred.flatten(), label.flatten())
+        new_hist, correct, labeled = self.hist_info(
+            n_classes, pred.flatten(), label.flatten()
+        )
         hist += new_hist
         mIoUs = self.per_class_iu(hist)
         # for ind_class in range(n_classes):
@@ -117,8 +144,7 @@ class Metric_mIoU():
         # print('===> mIoU: ' + str(round(np.nanmean(mIoUs) * 100, 2)))
         return round(np.nanmean(mIoUs) * 100, 2), hist
 
-
-    def add_batch(self,semantics_pred,semantics_gt,mask_lidar,mask_camera):
+    def add_batch(self, semantics_pred, semantics_gt, mask_lidar, mask_camera):
         self.cnt += 1
         if self.use_image_mask:
             masked_semantics_gt = semantics_gt[mask_camera]
@@ -131,34 +157,42 @@ class Metric_mIoU():
             masked_semantics_pred = semantics_pred
 
             # # pred = np.random.randint(low=0, high=17, size=masked_semantics.shape)
-        _, _hist = self.compute_mIoU(masked_semantics_pred, masked_semantics_gt, self.num_classes)
+        _, _hist = self.compute_mIoU(
+            masked_semantics_pred, masked_semantics_gt, self.num_classes
+        )
         self.hist += _hist
 
     def count_miou(self):
         mIoU = self.per_class_iu(self.hist)
         # assert cnt == num_samples, 'some samples are not included in the miou calculation'
-        print(f'===> per class IoU of {self.cnt} samples:')
-        for ind_class in range(self.num_classes-1):
-            print(f'===> {self.class_names[ind_class]} - IoU = ' + str(round(mIoU[ind_class] * 100, 2)))
+        print(f"===> per class IoU of {self.cnt} samples:")
+        for ind_class in range(self.num_classes - 1):
+            print(
+                f"===> {self.class_names[ind_class]} - IoU = "
+                + str(round(mIoU[ind_class] * 100, 2))
+            )
 
-        print(f'===> mIoU of {self.cnt} samples: ' + str(round(np.nanmean(mIoU[:self.num_classes-1]) * 100, 2)))
+        print(
+            f"===> mIoU of {self.cnt} samples: "
+            + str(round(np.nanmean(mIoU[: self.num_classes - 1]) * 100, 2))
+        )
         # print(f'===> sample-wise averaged mIoU of {cnt} samples: ' + str(round(np.nanmean(mIoU_avg), 2)))
 
         # return mIoU
 
 
-class Metric_FScore():
-    def __init__(self,
-
-                 leaf_size=10,
-                 threshold_acc=0.6,
-                 threshold_complete=0.6,
-                 voxel_size=[0.4, 0.4, 0.4],
-                 range=[-40, -40, -1, 40, 40, 5.4],
-                 void=[17, 255],
-                 use_lidar_mask=False,
-                 use_image_mask=False, ) -> None:
-
+class Metric_FScore:
+    def __init__(
+        self,
+        leaf_size=10,
+        threshold_acc=0.6,
+        threshold_complete=0.6,
+        voxel_size=[0.4, 0.4, 0.4],
+        range=[-40, -40, -1, 40, 40, 5.4],
+        void=[17, 255],
+        use_lidar_mask=False,
+        use_image_mask=False,
+    ) -> None:
         self.leaf_size = leaf_size
         self.threshold_acc = threshold_acc
         self.threshold_complete = threshold_complete
@@ -167,33 +201,43 @@ class Metric_FScore():
         self.void = void
         self.use_lidar_mask = use_lidar_mask
         self.use_image_mask = use_image_mask
-        self.cnt=0
-        self.tot_acc = 0.
-        self.tot_cmpl = 0.
-        self.tot_f1_mean = 0.
+        self.cnt = 0
+        self.tot_acc = 0.0
+        self.tot_cmpl = 0.0
+        self.tot_f1_mean = 0.0
         self.eps = 1e-8
-
-
 
     def voxel2points(self, voxel):
         # occIdx = torch.where(torch.logical_and(voxel != FREE, voxel != NOT_OBSERVED))
         # if isinstance(voxel, np.ndarray): voxel = torch.from_numpy(voxel)
-        mask = np.logical_not(reduce(np.logical_or, [voxel == self.void[i] for i in range(len(self.void))]))
+        mask = np.logical_not(
+            reduce(
+                np.logical_or, [voxel == self.void[i] for i in range(len(self.void))]
+            )
+        )
         occIdx = np.where(mask)
 
-        points = np.concatenate((occIdx[0][:, None] * self.voxel_size[0] + self.voxel_size[0] / 2 + self.range[0], \
-                                 occIdx[1][:, None] * self.voxel_size[1] + self.voxel_size[1] / 2 + self.range[1], \
-                                 occIdx[2][:, None] * self.voxel_size[2] + self.voxel_size[2] / 2 + self.range[2]),
-                                axis=1)
+        points = np.concatenate(
+            (
+                occIdx[0][:, None] * self.voxel_size[0]
+                + self.voxel_size[0] / 2
+                + self.range[0],
+                occIdx[1][:, None] * self.voxel_size[1]
+                + self.voxel_size[1] / 2
+                + self.range[1],
+                occIdx[2][:, None] * self.voxel_size[2]
+                + self.voxel_size[2] / 2
+                + self.range[2],
+            ),
+            axis=1,
+        )
         return points
 
-    def add_batch(self,semantics_pred,semantics_gt,mask_lidar,mask_camera ):
-
+    def add_batch(self, semantics_pred, semantics_gt, mask_lidar, mask_camera):
         # for scene_token in tqdm(preds_dict.keys()):
         self.cnt += 1
 
         if self.use_image_mask:
-
             semantics_gt[mask_camera == False] = 255
             semantics_pred[mask_camera == False] = 255
         elif self.use_lidar_mask:
@@ -205,9 +249,9 @@ class Metric_FScore():
         ground_truth = self.voxel2points(semantics_gt)
         prediction = self.voxel2points(semantics_pred)
         if prediction.shape[0] == 0:
-            accuracy=0
-            completeness=0
-            fmean=0
+            accuracy = 0
+            completeness = 0
+            fmean = 0
 
         else:
             prediction_tree = KDTree(prediction, leaf_size=self.leaf_size)
@@ -226,14 +270,20 @@ class Metric_FScore():
             accuracy_mask = accuracy_distance < self.threshold_acc
             accuracy = accuracy_mask.mean()
 
-            fmean = 2.0 / (1 / (accuracy+self.eps) + 1 / (completeness+self.eps))
+            fmean = 2.0 / (1 / (accuracy + self.eps) + 1 / (completeness + self.eps))
 
         self.tot_acc += accuracy
         self.tot_cmpl += completeness
         self.tot_f1_mean += fmean
 
-    def count_fscore(self,):
-        base_color, attrs = 'red', ['bold', 'dark']
-        print(pcolor('\n######## F score: {} #######'.format(self.tot_f1_mean / self.cnt), base_color, attrs=attrs))
-
-
+    def count_fscore(
+        self,
+    ):
+        base_color, attrs = "red", ["bold", "dark"]
+        print(
+            pcolor(
+                "\n######## F score: {} #######".format(self.tot_f1_mean / self.cnt),
+                base_color,
+                attrs=attrs,
+            )
+        )

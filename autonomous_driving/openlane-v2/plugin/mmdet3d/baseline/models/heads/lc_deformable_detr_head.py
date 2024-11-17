@@ -1,5 +1,5 @@
 # ==============================================================================
-# Binaries and/or source for the following packages or projects 
+# Binaries and/or source for the following packages or projects
 # are presented under one or more of the following open source licenses:
 # custom_detr_head.py    The OpenLane-V2 Dataset Authors    Apache License, Version 2.0
 #
@@ -40,38 +40,41 @@ from mmdet.models.utils.transformer import inverse_sigmoid
 
 @HEADS.register_module()
 class LCDeformableDETRHead(AnchorFreeHead):
-
-    def __init__(self,
-                 num_classes,
-                 in_channels,
-                 num_query=100,
-                 with_box_refine=False,
-                 with_shared_param=None,
-                 transformer=None,
-                 num_reg_fcs=2,
-                 code_weights=None,
-                 pc_range=None,
-                 bev_h=30,
-                 bev_w=30,
-                 sync_cls_avg_factor=False,
-                 loss_cls=dict(
-                     type='CrossEntropyLoss',
-                     bg_cls_weight=0.1,
-                     use_sigmoid=False,
-                     loss_weight=1.0,
-                     class_weight=1.0),
-                 loss_bbox=dict(type='L1Loss', loss_weight=5.0),
-                 loss_iou=dict(type='GIoULoss', loss_weight=2.0),
-                 train_cfg=dict(
-                     assigner=dict(
-                         type='HungarianAssigner',
-                         cls_cost=dict(type='ClassificationCost', weight=1.),
-                         reg_cost=dict(type='BBoxL1Cost', weight=5.0),
-                         iou_cost=dict(
-                             type='IoUCost', iou_mode='giou', weight=2.0))),
-                 test_cfg=dict(max_per_img=100),
-                 init_cfg=None,
-                 **kwargs):
+    def __init__(
+        self,
+        num_classes,
+        in_channels,
+        num_query=100,
+        with_box_refine=False,
+        with_shared_param=None,
+        transformer=None,
+        num_reg_fcs=2,
+        code_weights=None,
+        pc_range=None,
+        bev_h=30,
+        bev_w=30,
+        sync_cls_avg_factor=False,
+        loss_cls=dict(
+            type="CrossEntropyLoss",
+            bg_cls_weight=0.1,
+            use_sigmoid=False,
+            loss_weight=1.0,
+            class_weight=1.0,
+        ),
+        loss_bbox=dict(type="L1Loss", loss_weight=5.0),
+        loss_iou=dict(type="GIoULoss", loss_weight=2.0),
+        train_cfg=dict(
+            assigner=dict(
+                type="HungarianAssigner",
+                cls_cost=dict(type="ClassificationCost", weight=1.0),
+                reg_cost=dict(type="BBoxL1Cost", weight=5.0),
+                iou_cost=dict(type="IoUCost", iou_mode="giou", weight=2.0),
+            )
+        ),
+        test_cfg=dict(max_per_img=100),
+        init_cfg=None,
+        **kwargs,
+    ):
         # NOTE here use `AnchorFreeHead` instead of `TransformerHead`,
         # since it brings inconvenience when the initialization of
         # `AnchorFreeHead` is called.
@@ -79,21 +82,25 @@ class LCDeformableDETRHead(AnchorFreeHead):
         self.bg_cls_weight = 0
         self.sync_cls_avg_factor = sync_cls_avg_factor
         if train_cfg:
-            assert 'assigner' in train_cfg, 'assigner should be provided '\
-                'when train_cfg is set.'
-            assigner = train_cfg['assigner']
-            assert loss_cls['loss_weight'] == assigner['cls_cost']['weight'], \
-                'The classification weight for loss and matcher should be' \
-                'exactly the same.'
-            assert loss_bbox['loss_weight'] == assigner['reg_cost'][
-                'weight'], 'The regression L1 weight for loss and matcher ' \
-                'should be exactly the same.'
-            assert loss_iou['loss_weight'] == assigner['iou_cost']['weight'], \
-                'The regression iou weight for loss and matcher should be' \
-                'exactly the same.'
+            assert "assigner" in train_cfg, (
+                "assigner should be provided " "when train_cfg is set."
+            )
+            assigner = train_cfg["assigner"]
+            assert loss_cls["loss_weight"] == assigner["cls_cost"]["weight"], (
+                "The classification weight for loss and matcher should be"
+                "exactly the same."
+            )
+            assert loss_bbox["loss_weight"] == assigner["reg_cost"]["weight"], (
+                "The regression L1 weight for loss and matcher "
+                "should be exactly the same."
+            )
+            assert loss_iou["loss_weight"] == assigner["iou_cost"]["weight"], (
+                "The regression iou weight for loss and matcher should be"
+                "exactly the same."
+            )
             self.assigner = build_assigner(assigner)
             # DETR sampling=False, so use PseudoSampler
-            sampler_cfg = dict(type='PseudoSampler')
+            sampler_cfg = dict(type="PseudoSampler")
             self.sampler = build_sampler(sampler_cfg, context=self)
         self.num_query = num_query
         self.num_classes = num_classes
@@ -109,8 +116,7 @@ class LCDeformableDETRHead(AnchorFreeHead):
             self.cls_out_channels = num_classes
         else:
             self.cls_out_channels = num_classes + 1
-        self.act_cfg = transformer.get('act_cfg',
-                                       dict(type='ReLU', inplace=True))
+        self.act_cfg = transformer.get("act_cfg", dict(type="ReLU", inplace=True))
         self.activate = build_activation_layer(self.act_cfg)
         self.transformer = build_transformer(transformer)
         self.embed_dims = self.transformer.embed_dims
@@ -126,16 +132,17 @@ class LCDeformableDETRHead(AnchorFreeHead):
             self.with_shared_param = not self.with_box_refine
         self.as_two_stage = False
 
-        if 'code_size' in kwargs:
-            self.code_size = kwargs['code_size']
+        if "code_size" in kwargs:
+            self.code_size = kwargs["code_size"]
         else:
             self.code_size = 6
         if code_weights is not None:
             self.code_weights = code_weights
         else:
             self.code_weights = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-        self.code_weights = nn.Parameter(torch.tensor(
-            self.code_weights, requires_grad=False), requires_grad=False)
+        self.code_weights = nn.Parameter(
+            torch.tensor(self.code_weights, requires_grad=False), requires_grad=False
+        )
         self.gt_c_save = self.code_size
 
         self.pc_range = pc_range
@@ -166,17 +173,18 @@ class LCDeformableDETRHead(AnchorFreeHead):
 
         # last reg_branch is used to generate proposal from
         # encode feature map when as_two_stage is True.
-        num_pred = (self.transformer.decoder.num_layers + 1) if \
-            self.as_two_stage else self.transformer.decoder.num_layers
+        num_pred = (
+            (self.transformer.decoder.num_layers + 1)
+            if self.as_two_stage
+            else self.transformer.decoder.num_layers
+        )
 
         if not self.with_shared_param:
             self.cls_branches = _get_clones(fc_cls, num_pred)
             self.reg_branches = _get_clones(reg_branch, num_pred)
         else:
-            self.cls_branches = nn.ModuleList(
-                [fc_cls for _ in range(num_pred)])
-            self.reg_branches = nn.ModuleList(
-                [reg_branch for _ in range(num_pred)])
+            self.cls_branches = nn.ModuleList([fc_cls for _ in range(num_pred)])
+            self.reg_branches = nn.ModuleList([reg_branch for _ in range(num_pred)])
         self.query_embedding = nn.Embedding(self.num_query, self.embed_dims * 2)
 
     def init_weights(self):
@@ -187,7 +195,7 @@ class LCDeformableDETRHead(AnchorFreeHead):
             for m in self.cls_branches:
                 nn.init.constant_(m[-1].bias, bias_init)
 
-    @auto_fp16(apply_to=('mlvl_feats'))
+    @auto_fp16(apply_to=("mlvl_feats"))
     def forward(self, mlvl_feats, bev_feats, img_metas):
         """Forward function.
         Args:
@@ -214,7 +222,7 @@ class LCDeformableDETRHead(AnchorFreeHead):
             bev_w=self.bev_w,
             reg_branches=self.reg_branches if self.with_box_refine else None,  # noqa:E501
             cls_branches=None,
-            img_metas=img_metas
+            img_metas=img_metas,
         )
 
         hs, init_reference, inter_references = outputs
@@ -232,12 +240,21 @@ class LCDeformableDETRHead(AnchorFreeHead):
 
             assert reference.shape[-1] == 3
             for p in range(self.code_size // 3):
-                tmp[..., 3*p:3*p+3] = tmp[..., 3*p:3*p+3] + reference
-                tmp[..., 3*p:3*p+3] = tmp[..., 3*p:3*p+3].sigmoid()
-                tmp[..., 3*p] = tmp[..., 3*p] * (self.pc_range[3] - self.pc_range[0]) + self.pc_range[0]
-                tmp[..., 3*p+1] = tmp[..., 3*p+1] * (self.pc_range[4] - self.pc_range[1]) + self.pc_range[1]
-                tmp[..., 3*p+2] = tmp[..., 3*p+2] * (self.pc_range[5] - self.pc_range[2]) + self.pc_range[2]
- 
+                tmp[..., 3 * p : 3 * p + 3] = tmp[..., 3 * p : 3 * p + 3] + reference
+                tmp[..., 3 * p : 3 * p + 3] = tmp[..., 3 * p : 3 * p + 3].sigmoid()
+                tmp[..., 3 * p] = (
+                    tmp[..., 3 * p] * (self.pc_range[3] - self.pc_range[0])
+                    + self.pc_range[0]
+                )
+                tmp[..., 3 * p + 1] = (
+                    tmp[..., 3 * p + 1] * (self.pc_range[4] - self.pc_range[1])
+                    + self.pc_range[1]
+                )
+                tmp[..., 3 * p + 2] = (
+                    tmp[..., 3 * p + 2] * (self.pc_range[5] - self.pc_range[2])
+                    + self.pc_range[2]
+                )
+
             outputs_coord = tmp
             outputs_classes.append(outputs_class)
             outputs_coords.append(outputs_coord)
@@ -246,22 +263,19 @@ class LCDeformableDETRHead(AnchorFreeHead):
         outputs_coords = torch.stack(outputs_coords)
 
         outs = {
-            'all_cls_scores': outputs_classes,
-            'all_lanes_preds': outputs_coords,
-            'enc_cls_scores': None,
-            'enc_bbox_preds': None,
-            'history_states': hs
+            "all_cls_scores": outputs_classes,
+            "all_lanes_preds": outputs_coords,
+            "enc_cls_scores": None,
+            "enc_bbox_preds": None,
+            "history_states": hs,
         }
 
         return outs
 
-    def _get_target_single(self,
-                           cls_score,
-                           lanes_pred,
-                           gt_labels,
-                           gt_lanes,
-                           gt_bboxes_ignore=None):
-        """"Compute regression and classification targets for one image.
+    def _get_target_single(
+        self, cls_score, lanes_pred, gt_labels, gt_lanes, gt_bboxes_ignore=None
+    ):
+        """ "Compute regression and classification targets for one image.
         Outputs from a single decoder layer of a single feature level are used.
         Args:
             cls_score (Tensor): Box score logits from a single decoder layer
@@ -288,12 +302,12 @@ class LCDeformableDETRHead(AnchorFreeHead):
         num_bboxes = lanes_pred.size(0)
         # assigner and sampler
 
-        assign_result = self.assigner.assign(lanes_pred, cls_score, gt_lanes,
-                                             gt_labels, gt_bboxes_ignore)
+        assign_result = self.assigner.assign(
+            lanes_pred, cls_score, gt_lanes, gt_labels, gt_bboxes_ignore
+        )
 
-        sampling_result = self.sampler.sample(assign_result, lanes_pred,
-                                              gt_lanes)
-        
+        sampling_result = self.sampler.sample(assign_result, lanes_pred, gt_lanes)
+
         pos_inds = sampling_result.pos_inds
         neg_inds = sampling_result.neg_inds
         pos_assigned_gt_inds = sampling_result.pos_assigned_gt_inds
@@ -306,7 +320,9 @@ class LCDeformableDETRHead(AnchorFreeHead):
         gt_c = gt_lanes.shape[-1]
         if gt_c == 0:
             gt_c = self.gt_c_save
-            sampling_result.pos_gt_bboxes = torch.zeros((0, gt_c)).to(sampling_result.pos_gt_bboxes.device)
+            sampling_result.pos_gt_bboxes = torch.zeros((0, gt_c)).to(
+                sampling_result.pos_gt_bboxes.device
+            )
         else:
             self.gt_c_save = gt_c
 
@@ -316,15 +332,24 @@ class LCDeformableDETRHead(AnchorFreeHead):
         # DETR
 
         bbox_targets[pos_inds] = sampling_result.pos_gt_bboxes
-        return (labels, label_weights, bbox_targets, bbox_weights,
-                pos_inds, neg_inds, pos_assigned_gt_inds)
+        return (
+            labels,
+            label_weights,
+            bbox_targets,
+            bbox_weights,
+            pos_inds,
+            neg_inds,
+            pos_assigned_gt_inds,
+        )
 
-    def get_targets(self,
-                    cls_scores_list,
-                    lanes_preds_list,
-                    gt_lanes_list,
-                    gt_labels_list,
-                    gt_bboxes_ignore_list=None):
+    def get_targets(
+        self,
+        cls_scores_list,
+        lanes_preds_list,
+        gt_lanes_list,
+        gt_labels_list,
+        gt_bboxes_ignore_list=None,
+    ):
         """"Compute regression and classification targets for a batch image.
         Outputs from a single decoder layer of a single feature level are used.
         Args:
@@ -354,32 +379,54 @@ class LCDeformableDETRHead(AnchorFreeHead):
                 - num_total_neg (int): Number of negative samples in all \
                     images.
         """
-        assert gt_bboxes_ignore_list is None, \
-            'Only supports for gt_bboxes_ignore setting to None.'
+        assert (
+            gt_bboxes_ignore_list is None
+        ), "Only supports for gt_bboxes_ignore setting to None."
         num_imgs = len(cls_scores_list)
-        gt_bboxes_ignore_list = [
-            gt_bboxes_ignore_list for _ in range(num_imgs)
-        ]
+        gt_bboxes_ignore_list = [gt_bboxes_ignore_list for _ in range(num_imgs)]
 
-        (labels_list, label_weights_list, lanes_targets_list,
-         lanes_weights_list, pos_inds_list, neg_inds_list, pos_assigned_gt_inds_list) = multi_apply(
-            self._get_target_single, cls_scores_list, lanes_preds_list,
-            gt_labels_list, gt_lanes_list, gt_bboxes_ignore_list)
+        (
+            labels_list,
+            label_weights_list,
+            lanes_targets_list,
+            lanes_weights_list,
+            pos_inds_list,
+            neg_inds_list,
+            pos_assigned_gt_inds_list,
+        ) = multi_apply(
+            self._get_target_single,
+            cls_scores_list,
+            lanes_preds_list,
+            gt_labels_list,
+            gt_lanes_list,
+            gt_bboxes_ignore_list,
+        )
         num_total_pos = sum((inds.numel() for inds in pos_inds_list))
         num_total_neg = sum((inds.numel() for inds in neg_inds_list))
         assign_result = dict(
-            pos_inds=pos_inds_list, neg_inds=neg_inds_list, pos_assigned_gt_inds=pos_assigned_gt_inds_list
+            pos_inds=pos_inds_list,
+            neg_inds=neg_inds_list,
+            pos_assigned_gt_inds=pos_assigned_gt_inds_list,
         )
-        return (labels_list, label_weights_list, lanes_targets_list,
-                lanes_weights_list, num_total_pos, num_total_neg, assign_result)
+        return (
+            labels_list,
+            label_weights_list,
+            lanes_targets_list,
+            lanes_weights_list,
+            num_total_pos,
+            num_total_neg,
+            assign_result,
+        )
 
-    def loss_single(self,
-                    cls_scores,
-                    lanes_preds,
-                    gt_lanes_list,
-                    gt_labels_list,
-                    gt_bboxes_ignore_list=None):
-        """"Loss function for outputs from a single decoder layer of a single
+    def loss_single(
+        self,
+        cls_scores,
+        lanes_preds,
+        gt_lanes_list,
+        gt_labels_list,
+        gt_bboxes_ignore_list=None,
+    ):
+        """ "Loss function for outputs from a single decoder layer of a single
         feature level.
         Args:
             cls_scores (Tensor): Box score logits from a single decoder layer
@@ -401,11 +448,22 @@ class LCDeformableDETRHead(AnchorFreeHead):
         cls_scores_list = [cls_scores[i] for i in range(num_imgs)]
         lanes_preds_list = [lanes_preds[i] for i in range(num_imgs)]
 
-        cls_reg_targets = self.get_targets(cls_scores_list, lanes_preds_list,
-                                           gt_lanes_list, gt_labels_list,
-                                           gt_bboxes_ignore_list)
-        (labels_list, label_weights_list, bbox_targets_list, bbox_weights_list,
-         num_total_pos, num_total_neg, assign_result) = cls_reg_targets
+        cls_reg_targets = self.get_targets(
+            cls_scores_list,
+            lanes_preds_list,
+            gt_lanes_list,
+            gt_labels_list,
+            gt_bboxes_ignore_list,
+        )
+        (
+            labels_list,
+            label_weights_list,
+            bbox_targets_list,
+            bbox_weights_list,
+            num_total_pos,
+            num_total_neg,
+            assign_result,
+        ) = cls_reg_targets
         labels = torch.cat(labels_list, 0)
         label_weights = torch.cat(label_weights_list, 0)
         bbox_targets = torch.cat(bbox_targets_list, 0)
@@ -414,15 +472,14 @@ class LCDeformableDETRHead(AnchorFreeHead):
         # classification loss
         cls_scores = cls_scores.reshape(-1, self.cls_out_channels)
         # construct weighted avg_factor to match with the official DETR repo
-        cls_avg_factor = num_total_pos * 1.0 + \
-            num_total_neg * self.bg_cls_weight
+        cls_avg_factor = num_total_pos * 1.0 + num_total_neg * self.bg_cls_weight
         if self.sync_cls_avg_factor:
-            cls_avg_factor = reduce_mean(
-                cls_scores.new_tensor([cls_avg_factor]))
+            cls_avg_factor = reduce_mean(cls_scores.new_tensor([cls_avg_factor]))
 
         cls_avg_factor = max(cls_avg_factor, 1)
         loss_cls = self.loss_cls(
-            cls_scores, labels, label_weights, avg_factor=cls_avg_factor)
+            cls_scores, labels, label_weights, avg_factor=cls_avg_factor
+        )
 
         # Compute the average number of gt boxes accross all gpus, for
         # normalization purposes
@@ -436,23 +493,26 @@ class LCDeformableDETRHead(AnchorFreeHead):
         bbox_weights = bbox_weights * self.code_weights
 
         loss_bbox = self.loss_bbox(
-            lanes_preds[isnotnan, :self.code_size], 
-            bbox_targets[isnotnan, :self.code_size],
-            bbox_weights[isnotnan, :self.code_size],
-            avg_factor=num_total_pos)
-        if digit_version(TORCH_VERSION) >= digit_version('1.8'):
+            lanes_preds[isnotnan, : self.code_size],
+            bbox_targets[isnotnan, : self.code_size],
+            bbox_weights[isnotnan, : self.code_size],
+            avg_factor=num_total_pos,
+        )
+        if digit_version(TORCH_VERSION) >= digit_version("1.8"):
             loss_cls = torch.nan_to_num(loss_cls)
             loss_bbox = torch.nan_to_num(loss_bbox)
         return loss_cls, loss_bbox, assign_result
 
-    @force_fp32(apply_to=('preds_dicts'))
-    def loss(self,
-             preds_dicts,
-             gt_lanes_3d,
-             gt_labels_list,
-             gt_bboxes_ignore=None,
-             img_metas=None):
-        """"Loss function.
+    @force_fp32(apply_to=("preds_dicts"))
+    def loss(
+        self,
+        preds_dicts,
+        gt_lanes_3d,
+        gt_labels_list,
+        gt_bboxes_ignore=None,
+        img_metas=None,
+    ):
+        """ "Loss function.
         Args:
 
             gt_bboxes_list (list[Tensor]): Ground truth bboxes for each image
@@ -479,13 +539,14 @@ class LCDeformableDETRHead(AnchorFreeHead):
         Returns:
             dict[str, Tensor]: A dictionary of loss components.
         """
-        assert gt_bboxes_ignore is None, \
-            f'{self.__class__.__name__} only supports ' \
-            f'for gt_bboxes_ignore setting to None.'
-        all_cls_scores = preds_dicts['all_cls_scores']
-        all_lanes_preds = preds_dicts['all_lanes_preds']
-        enc_cls_scores = preds_dicts['enc_cls_scores']
-        enc_bbox_preds = preds_dicts['enc_bbox_preds']
+        assert gt_bboxes_ignore is None, (
+            f"{self.__class__.__name__} only supports "
+            f"for gt_bboxes_ignore setting to None."
+        )
+        all_cls_scores = preds_dicts["all_cls_scores"]
+        all_lanes_preds = preds_dicts["all_lanes_preds"]
+        enc_cls_scores = preds_dicts["enc_cls_scores"]
+        enc_bbox_preds = preds_dicts["enc_bbox_preds"]
 
         num_dec_layers = len(all_cls_scores)
         device = gt_labels_list[0].device
@@ -497,8 +558,12 @@ class LCDeformableDETRHead(AnchorFreeHead):
         all_gt_labels_list = [gt_labels_list for _ in range(num_dec_layers)]
 
         losses_cls, losses_bbox, assign_result = multi_apply(
-            self.loss_single, all_cls_scores, all_lanes_preds,
-            all_gt_lanes_list, all_gt_labels_list)
+            self.loss_single,
+            all_cls_scores,
+            all_lanes_preds,
+            all_gt_lanes_list,
+            all_gt_labels_list,
+        )
 
         loss_dict = dict()
         # loss of proposal generated from encode feature map.
@@ -507,26 +572,29 @@ class LCDeformableDETRHead(AnchorFreeHead):
                 torch.zeros_like(gt_labels_list[i])
                 for i in range(len(all_gt_labels_list))
             ]
-            enc_loss_cls, enc_losses_bbox = \
-                self.loss_single(enc_cls_scores, enc_bbox_preds,
-                                 gt_lanes_3d, binary_labels_list, gt_bboxes_ignore)
-            loss_dict['enc_loss_cls'] = enc_loss_cls
-            loss_dict['enc_loss_bbox'] = enc_losses_bbox
+            enc_loss_cls, enc_losses_bbox = self.loss_single(
+                enc_cls_scores,
+                enc_bbox_preds,
+                gt_lanes_3d,
+                binary_labels_list,
+                gt_bboxes_ignore,
+            )
+            loss_dict["enc_loss_cls"] = enc_loss_cls
+            loss_dict["enc_loss_bbox"] = enc_losses_bbox
 
         # loss from the last decoder layer
-        loss_dict['loss_lane_cls'] = losses_cls[-1]
-        loss_dict['loss_lane_reg'] = losses_bbox[-1]
+        loss_dict["loss_lane_cls"] = losses_cls[-1]
+        loss_dict["loss_lane_reg"] = losses_bbox[-1]
 
         # loss from other decoder layers
         num_dec_layer = 0
-        for loss_cls_i, loss_bbox_i in zip(losses_cls[:-1],
-                                           losses_bbox[:-1]):
-            loss_dict[f'd{num_dec_layer}.loss_lane_cls'] = loss_cls_i
-            loss_dict[f'd{num_dec_layer}.loss_lane_reg'] = loss_bbox_i
+        for loss_cls_i, loss_bbox_i in zip(losses_cls[:-1], losses_bbox[:-1]):
+            loss_dict[f"d{num_dec_layer}.loss_lane_cls"] = loss_cls_i
+            loss_dict[f"d{num_dec_layer}.loss_lane_reg"] = loss_bbox_i
             num_dec_layer += 1
         return loss_dict, assign_result
 
-    @force_fp32(apply_to=('preds_dicts'))
+    @force_fp32(apply_to=("preds_dicts"))
     def get_lanes(self, preds_dicts, img_metas, rescale=False):
         """Generate bboxes from bbox head predictions.
         Args:
@@ -536,15 +604,18 @@ class LCDeformableDETRHead(AnchorFreeHead):
             list[dict]: Decoded bbox, scores and labels after nms.
         """
 
-        all_cls_scores = preds_dicts['all_cls_scores'][-1]
-        all_lanes_preds = preds_dicts['all_lanes_preds'][-1]
+        all_cls_scores = preds_dicts["all_cls_scores"][-1]
+        all_lanes_preds = preds_dicts["all_lanes_preds"][-1]
         batch_size = all_cls_scores.size()[0]
         predictions_list = []
         for i in range(batch_size):
             cls_scores = all_cls_scores[i].sigmoid()
 
-            predictions_list.append([
-                all_lanes_preds[i].detach().cpu().numpy(), 
-                cls_scores.detach().cpu().numpy()])
+            predictions_list.append(
+                [
+                    all_lanes_preds[i].detach().cpu().numpy(),
+                    cls_scores.detach().cpu().numpy(),
+                ]
+            )
 
         return predictions_list

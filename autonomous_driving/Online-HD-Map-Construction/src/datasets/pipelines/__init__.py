@@ -6,7 +6,11 @@ from .poly_bbox import PolygonizeLocalMapBbox
 # for argoverse
 
 __all__ = [
-    'LoadMultiViewImagesFromFiles',
-    'FormatBundleMap', 'Normalize3D', 'ResizeMultiViewImages', 'PadMultiViewImages',
-    'VectorizeMap', 'PolygonizeLocalMapBbox'
+    "LoadMultiViewImagesFromFiles",
+    "FormatBundleMap",
+    "Normalize3D",
+    "ResizeMultiViewImages",
+    "PadMultiViewImages",
+    "VectorizeMap",
+    "PolygonizeLocalMapBbox",
 ]

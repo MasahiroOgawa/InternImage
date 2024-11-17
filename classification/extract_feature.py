@@ -8,7 +8,7 @@ def rgetattr(obj, attr, *args):
     def _getattr(obj, attr):
         return getattr(obj, attr, *args)
 
-    return functools.reduce(_getattr, [obj] + attr.split('.'))
+    return functools.reduce(_getattr, [obj] + attr.split("."))
 
 
 class IntermediateLayerGetter:
@@ -55,7 +55,7 @@ class IntermediateLayerGetter:
             try:
                 h = layer.register_forward_hook(hook)
             except AttributeError as e:
-                raise AttributeError(f'Module {name} not found')
+                raise AttributeError(f"Module {name} not found")
             handles.append(h)
 
         if self.keep_output:
@@ -76,8 +76,8 @@ def main(args, config):
     from PIL import Image
 
     model = build_model(config)
-    checkpoint = torch.load(config.MODEL.RESUME, map_location='cpu')
-    model.load_state_dict(checkpoint['model'], strict=False)
+    checkpoint = torch.load(config.MODEL.RESUME, map_location="cpu")
+    model.load_state_dict(checkpoint["model"], strict=False)
     model.cuda()
 
     # examples:
@@ -87,15 +87,19 @@ def main(args, config):
     #     'levels.0.blocks.0.dcn': 'levels.0.blocks.0.dcn',
     # }
     return_layers = {k: k for k in args.keys}
-    mid_getter = IntermediateLayerGetter(model, return_layers=return_layers, keep_output=True)
+    mid_getter = IntermediateLayerGetter(
+        model, return_layers=return_layers, keep_output=True
+    )
 
     image = Image.open(args.img)
 
-    transforms = T.Compose([
-        T.Resize(config.DATA.IMG_SIZE),
-        T.ToTensor(),
-        T.Normalize(config.AUG.MEAN, config.AUG.STD)
-    ])
+    transforms = T.Compose(
+        [
+            T.Resize(config.DATA.IMG_SIZE),
+            T.ToTensor(),
+            T.Normalize(config.AUG.MEAN, config.AUG.STD),
+        ]
+    )
     image = transforms(image)
     image = image.unsqueeze(0)
     image = image.cuda()
@@ -108,21 +112,30 @@ def main(args, config):
     return mid_outputs, model_output
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import argparse
     import torch
     from config import get_config
 
-    parser = argparse.ArgumentParser('Get Intermediate Layer Output')
-    parser.add_argument('--cfg', type=str, required=True, metavar="FILE", help='Path to config file')
-    parser.add_argument('--img', type=str, required=True, metavar="FILE", help='Path to img file')
-    parser.add_argument("--keys", default=None, nargs='+', help="The intermediate layer's keys you want to save.")
-    parser.add_argument('--resume', help='resume from checkpoint')
-    parser.add_argument('--save', action='store_true', help='Save the results.')
+    parser = argparse.ArgumentParser("Get Intermediate Layer Output")
+    parser.add_argument(
+        "--cfg", type=str, required=True, metavar="FILE", help="Path to config file"
+    )
+    parser.add_argument(
+        "--img", type=str, required=True, metavar="FILE", help="Path to img file"
+    )
+    parser.add_argument(
+        "--keys",
+        default=None,
+        nargs="+",
+        help="The intermediate layer's keys you want to save.",
+    )
+    parser.add_argument("--resume", help="resume from checkpoint")
+    parser.add_argument("--save", action="store_true", help="Save the results.")
     args = parser.parse_args()
     config = get_config(args)
 
     mid_outputs, model_output = main(args, config)
 
     if args.save:
-        torch.save(mid_outputs, args.img[:-3] + '.pth')
+        torch.save(mid_outputs, args.img[:-3] + ".pth")

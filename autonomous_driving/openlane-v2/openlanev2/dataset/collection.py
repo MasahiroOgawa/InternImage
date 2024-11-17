@@ -1,5 +1,5 @@
 # ==============================================================================
-# Binaries and/or source for the following packages or projects 
+# Binaries and/or source for the following packages or projects
 # are presented under one or more of the following open source licenses:
 # collection.py    The OpenLane-V2 Dataset Authors    Apache License, Version 2.0
 #
@@ -27,9 +27,10 @@ from ..io import io
 class Collection:
     r"""
     A collection of frames.
-    
+
     """
-    def __init__(self, data_root : str, meta_root : str, collection : str) -> None:
+
+    def __init__(self, data_root: str, meta_root: str, collection: str) -> None:
         r"""
         Parameters
         ----------
@@ -40,14 +41,16 @@ class Collection:
 
         """
         try:
-            meta = io.pickle_load(f'{meta_root}/{collection}.pkl')
+            meta = io.pickle_load(f"{meta_root}/{collection}.pkl")
         except FileNotFoundError:
-            raise FileNotFoundError('Please run the preprocessing first to generate pickle file of the collection.')
+            raise FileNotFoundError(
+                "Please run the preprocessing first to generate pickle file of the collection."
+            )
 
         self.frames = {k: Frame(data_root, v) for k, v in meta.items()}
         self.keys = list(self.frames.keys())
 
-    def get_frame_via_identifier(self, identifier : tuple) -> Frame:
+    def get_frame_via_identifier(self, identifier: tuple) -> Frame:
         r"""
         Returns a frame with the given identifier (split, segment_id, timestamp).
 
@@ -64,7 +67,7 @@ class Collection:
         """
         return self.frames[identifier]
 
-    def get_frame_via_index(self, index : int) -> (tuple, Frame):
+    def get_frame_via_index(self, index: int) -> (tuple, Frame):
         r"""
         Returns a frame with the given index.
 

@@ -3,8 +3,9 @@ from .distance import chamfer_distance, frechet_distance
 from typing import List, Tuple, Union
 from numpy.typing import NDArray
 
-def average_precision(recalls, precisions, mode='area'):
-    """Calculate average precision. 
+
+def average_precision(recalls, precisions, mode="area"):
+    """Calculate average precision.
 
     Args:
         recalls (ndarray): shape (num_dets, )
@@ -22,37 +23,38 @@ def average_precision(recalls, precisions, mode='area'):
 
     assert recalls.shape == precisions.shape and recalls.ndim == 2
     num_scales = recalls.shape[0]
-    ap = 0.
+    ap = 0.0
 
-    if mode == 'area':
+    if mode == "area":
         zeros = np.zeros((num_scales, 1), dtype=recalls.dtype)
         ones = np.ones((num_scales, 1), dtype=recalls.dtype)
         mrec = np.hstack((zeros, recalls, ones))
         mpre = np.hstack((zeros, precisions, zeros))
         for i in range(mpre.shape[1] - 1, 0, -1):
             mpre[:, i - 1] = np.maximum(mpre[:, i - 1], mpre[:, i])
-        
+
         ind = np.where(mrec[0, 1:] != mrec[0, :-1])[0]
-        ap = np.sum(
-            (mrec[0, ind + 1] - mrec[0, ind]) * mpre[0, ind + 1])
-    
-    elif mode == '11points':
+        ap = np.sum((mrec[0, ind + 1] - mrec[0, ind]) * mpre[0, ind + 1])
+
+    elif mode == "11points":
         for thr in np.arange(0, 1 + 1e-3, 0.1):
             precs = precisions[0, recalls[i, :] >= thr]
             prec = precs.max() if precs.size > 0 else 0
             ap += prec
         ap /= 11
     else:
-        raise ValueError(
-            'Unrecognized mode, only "area" and "11points" are supported')
-    
+        raise ValueError('Unrecognized mode, only "area" and "11points" are supported')
+
     return ap
 
-def instance_match(pred_lines: List[NDArray], 
-                   scores: NDArray, 
-                   gt_lines: List[NDArray], 
-                   thresholds: Union[Tuple, List], 
-                   metric: str='chamfer') -> List:
+
+def instance_match(
+    pred_lines: List[NDArray],
+    scores: NDArray,
+    gt_lines: List[NDArray],
+    thresholds: Union[Tuple, List],
+    metric: str = "chamfer",
+) -> List:
     """Compute whether detected lines are true positive or false positive.
 
     Args:
@@ -66,14 +68,14 @@ def instance_match(pred_lines: List[NDArray],
         list_of_tp_fp (list): tp-fp matching result at all thresholds
     """
 
-    if metric == 'chamfer':
+    if metric == "chamfer":
         distance_fn = chamfer_distance
 
-    elif metric == 'frechet':
+    elif metric == "frechet":
         distance_fn = frechet_distance
-    
+
     else:
-        raise ValueError(f'unknown distance function {metric}')
+        raise ValueError(f"unknown distance function {metric}")
 
     num_preds = len(pred_lines)
     num_gts = len(gt_lines)
@@ -89,7 +91,7 @@ def instance_match(pred_lines: List[NDArray],
         for thr in thresholds:
             tp_fp_list.append((tp.copy(), fp.copy()))
         return tp_fp_list
-    
+
     if num_preds == 0:
         for thr in thresholds:
             tp_fp_list.append((tp.copy(), fp.copy()))
@@ -126,7 +128,7 @@ def instance_match(pred_lines: List[NDArray],
                     fp[i] = 1
             else:
                 fp[i] = 1
-        
+
         tp_fp_list.append((tp, fp))
 
     return tp_fp_list

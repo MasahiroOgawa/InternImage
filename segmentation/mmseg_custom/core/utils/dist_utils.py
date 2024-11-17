@@ -7,8 +7,7 @@ from collections import OrderedDict
 import torch
 import torch.distributed as dist
 from mmcv.runner import OptimizerHook, get_dist_info
-from torch._utils import (_flatten_dense_tensors, _take_tensors,
-                          _unflatten_dense_tensors)
+from torch._utils import _flatten_dense_tensors, _take_tensors, _unflatten_dense_tensors
 
 
 def _allreduce_coalesced(tensors, world_size, bucket_size_mb=-1):
@@ -29,7 +28,8 @@ def _allreduce_coalesced(tensors, world_size, bucket_size_mb=-1):
         dist.all_reduce(flat_tensors)
         flat_tensors.div_(world_size)
         for tensor, synced in zip(
-                bucket, _unflatten_dense_tensors(flat_tensors, bucket)):
+            bucket, _unflatten_dense_tensors(flat_tensors, bucket)
+        ):
             tensor.copy_(synced)
 
 
@@ -44,7 +44,8 @@ def allreduce_grads(params, coalesce=True, bucket_size_mb=-1):
             Defaults to -1.
     """
     grads = [
-        param.grad.data for param in params
+        param.grad.data
+        for param in params
         if param.requires_grad and param.grad is not None
     ]
     world_size = dist.get_world_size()
@@ -57,14 +58,17 @@ def allreduce_grads(params, coalesce=True, bucket_size_mb=-1):
 
 class DistOptimizerHook(OptimizerHook):
     """Deprecated optimizer hook for distributed training."""
+
     def __init__(self, *args, **kwargs):
-        warnings.warn('"DistOptimizerHook" is deprecated, please switch to'
-                      '"mmcv.runner.OptimizerHook".')
+        warnings.warn(
+            '"DistOptimizerHook" is deprecated, please switch to'
+            '"mmcv.runner.OptimizerHook".'
+        )
         super().__init__(*args, **kwargs)
 
 
 def reduce_mean(tensor):
-    """"Obtain the mean of tensor on different GPUs."""
+    """ "Obtain the mean of tensor on different GPUs."""
     if not (dist.is_available() and dist.is_initialized()):
         return tensor
     tensor = tensor.clone()
@@ -72,7 +76,7 @@ def reduce_mean(tensor):
     return tensor
 
 
-def obj2tensor(pyobj, device='cuda'):
+def obj2tensor(pyobj, device="cuda"):
     """Serialize picklable python object to tensor."""
     storage = torch.ByteStorage.from_buffer(pickle.dumps(pyobj))
     return torch.ByteTensor(storage).to(device=device)
@@ -87,13 +91,13 @@ def tensor2obj(tensor):
 def _get_global_gloo_group():
     """Return a process group based on gloo backend, containing all the ranks
     The result is cached."""
-    if dist.get_backend() == 'nccl':
-        return dist.new_group(backend='gloo')
+    if dist.get_backend() == "nccl":
+        return dist.new_group(backend="gloo")
     else:
         return dist.group.WORLD
 
 
-def all_reduce_dict(py_dict, op='sum', group=None, to_float=True):
+def all_reduce_dict(py_dict, op="sum", group=None, to_float=True):
     """Apply all reduce function for python dict object.
 
     The code is modified from https://github.com/Megvii-
@@ -132,17 +136,16 @@ def all_reduce_dict(py_dict, op='sum', group=None, to_float=True):
     tensor_numels = [py_dict[k].numel() for k in py_key]
 
     if to_float:
-        flatten_tensor = torch.cat(
-            [py_dict[k].flatten().float() for k in py_key])
+        flatten_tensor = torch.cat([py_dict[k].flatten().float() for k in py_key])
     else:
         flatten_tensor = torch.cat([py_dict[k].flatten() for k in py_key])
 
     dist.all_reduce(flatten_tensor, op=dist.ReduceOp.SUM)
-    if op == 'mean':
+    if op == "mean":
         flatten_tensor /= world_size
 
     split_tensors = [
-        x.reshape(shape) for x, shape in zip(
-            torch.split(flatten_tensor, tensor_numels), tensor_shapes)
+        x.reshape(shape)
+        for x, shape in zip(torch.split(flatten_tensor, tensor_numels), tensor_shapes)
     ]
     return OrderedDict({k: v for k, v in zip(py_key, split_tensors)})

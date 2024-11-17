@@ -5,6 +5,4 @@ from .pipelines import *  # noqa: F401,F403
 from .dataset_wrappers import ConcatDataset
 
 
-__all__ = [
-    'MapillaryDataset', 'NYUDepthV2Dataset', 'ConcatDataset'
-]
+__all__ = ["MapillaryDataset", "NYUDepthV2Dataset", "ConcatDataset"]

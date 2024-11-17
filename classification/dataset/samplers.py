@@ -48,34 +48,28 @@ class NodeDistributedSampler(Sampler):
         rank (optional): Rank of the current process within num_replicas.
     """
 
-    def __init__(self,
-                 dataset,
-                 num_replicas=None,
-                 rank=None,
-                 local_rank=None,
-                 local_size=None):
+    def __init__(
+        self, dataset, num_replicas=None, rank=None, local_rank=None, local_size=None
+    ):
         if num_replicas is None:
             if not dist.is_available():
-                raise RuntimeError(
-                    "Requires distributed package to be available")
+                raise RuntimeError("Requires distributed package to be available")
             num_replicas = dist.get_world_size()
         if rank is None:
             if not dist.is_available():
-                raise RuntimeError(
-                    "Requires distributed package to be available")
+                raise RuntimeError("Requires distributed package to be available")
             rank = dist.get_rank()
         if local_rank is None:
-            local_rank = int(os.environ.get('LOCAL_RANK', 0))
+            local_rank = int(os.environ.get("LOCAL_RANK", 0))
         if local_size is None:
-            local_size = int(os.environ.get('LOCAL_SIZE', 1))
+            local_size = int(os.environ.get("LOCAL_SIZE", 1))
         self.dataset = dataset
         self.num_replicas = num_replicas
         self.num_parts = local_size
         self.rank = rank
         self.local_rank = local_rank
         self.epoch = 0
-        self.num_samples = int(
-            math.ceil(len(self.dataset) * 1.0 / self.num_replicas))
+        self.num_samples = int(math.ceil(len(self.dataset) * 1.0 / self.num_replicas))
         self.total_size = self.num_samples * self.num_replicas
 
         self.total_size_parts = self.num_samples * self.num_replicas // self.num_parts
@@ -93,12 +87,14 @@ class NodeDistributedSampler(Sampler):
         indices = [i for i in indices if i % self.num_parts == self.local_rank]
 
         # add extra samples to make it evenly divisible
-        indices += indices[:(self.total_size_parts - len(indices))]
+        indices += indices[: (self.total_size_parts - len(indices))]
         assert len(indices) == self.total_size_parts
 
         # subsample
-        indices = indices[self.rank // self.num_parts:self.
-                          total_size_parts:self.num_replicas // self.num_parts]
+        indices = indices[
+            self.rank // self.num_parts : self.total_size_parts : self.num_replicas
+            // self.num_parts
+        ]
 
         index = torch.randperm(len(indices), generator=g).tolist()
         indices = list(np.array(indices)[index])

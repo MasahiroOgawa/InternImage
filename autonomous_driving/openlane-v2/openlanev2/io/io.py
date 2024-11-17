@@ -1,5 +1,5 @@
 # ==============================================================================
-# Binaries and/or source for the following packages or projects 
+# Binaries and/or source for the following packages or projects
 # are presented under one or more of the following open source licenses:
 # io.py    The OpenLane-V2 Dataset Authors    Apache License, Version 2.0
 #
@@ -31,12 +31,13 @@ class IO:
     r"""
     Wrapping io in openlanev2,
     can be modified for different file systems.
-    
+
     """
+
     def __init__(self) -> None:
         pass
 
-    def os_listdir(self, path : str) -> list:
+    def os_listdir(self, path: str) -> list:
         r"""
         Parameters
         ----------
@@ -47,9 +48,9 @@ class IO:
         list
 
         """
-        return os.listdir(path) 
+        return os.listdir(path)
 
-    def cv2_imread(self, path : str) -> np.ndarray:
+    def cv2_imread(self, path: str) -> np.ndarray:
         r"""
         Parameters
         ----------
@@ -60,9 +61,9 @@ class IO:
         np.ndarray
 
         """
-        return cv2.imread(path) 
+        return cv2.imread(path)
 
-    def json_load(self, path : str) -> dict:
+    def json_load(self, path: str) -> dict:
         r"""
         Parameters
         ----------
@@ -73,11 +74,11 @@ class IO:
         dict
 
         """
-        with open(path, 'r') as f:
+        with open(path, "r") as f:
             result = json.load(f)
         return result
 
-    def pickle_dump(self, path : str, obj : object) -> None:
+    def pickle_dump(self, path: str, obj: object) -> None:
         r"""
         Parameters
         ----------
@@ -85,10 +86,10 @@ class IO:
         obj : object
 
         """
-        with open(path, 'wb') as f:
+        with open(path, "wb") as f:
             pickle.dump(obj, f)
 
-    def pickle_load(self, path : str) -> object:
+    def pickle_load(self, path: str) -> object:
         r"""
         Parameters
         ----------
@@ -99,8 +100,9 @@ class IO:
         object
 
         """
-        with open(path, 'rb') as f:
+        with open(path, "rb") as f:
             result = pickle.load(f)
         return result
+
 
 io = IO()

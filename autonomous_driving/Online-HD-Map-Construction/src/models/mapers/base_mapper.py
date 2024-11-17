@@ -9,6 +9,7 @@ from mmdet3d.models.builder import DETECTORS
 
 MAPPERS = DETECTORS
 
+
 class BaseMapper(nn.Module, metaclass=ABCMeta):
     """Base class for mappers."""
 
@@ -19,28 +20,30 @@ class BaseMapper(nn.Module, metaclass=ABCMeta):
     @property
     def with_neck(self):
         """bool: whether the detector has a neck"""
-        return hasattr(self, 'neck') and self.neck is not None
+        return hasattr(self, "neck") and self.neck is not None
 
     # TODO: these properties need to be carefully handled
     # for both single stage & two stage detectors
     @property
     def with_shared_head(self):
         """bool: whether the detector has a shared head in the RoI Head"""
-        return hasattr(self, 'roi_head') and self.roi_head.with_shared_head
+        return hasattr(self, "roi_head") and self.roi_head.with_shared_head
 
     @property
     def with_bbox(self):
         """bool: whether the detector has a bbox head"""
-        return ((hasattr(self, 'roi_head') and self.roi_head.with_bbox)
-                or (hasattr(self, 'bbox_head') and self.bbox_head is not None))
+        return (hasattr(self, "roi_head") and self.roi_head.with_bbox) or (
+            hasattr(self, "bbox_head") and self.bbox_head is not None
+        )
 
     @property
     def with_mask(self):
         """bool: whether the detector has a mask head"""
-        return ((hasattr(self, 'roi_head') and self.roi_head.with_mask)
-                or (hasattr(self, 'mask_head') and self.mask_head is not None))
+        return (hasattr(self, "roi_head") and self.roi_head.with_mask) or (
+            hasattr(self, "mask_head") and self.mask_head is not None
+        )
 
-    #@abstractmethod
+    # @abstractmethod
     def extract_feat(self, imgs):
         """Extract features from images."""
         pass
@@ -48,11 +51,11 @@ class BaseMapper(nn.Module, metaclass=ABCMeta):
     def forward_train(self, *args, **kwargs):
         pass
 
-    #@abstractmethod
+    # @abstractmethod
     def simple_test(self, img, img_metas, **kwargs):
         pass
 
-    #@abstractmethod
+    # @abstractmethod
     def aug_test(self, imgs, img_metas, **kwargs):
         """Test function with test time augmentation."""
         pass
@@ -66,7 +69,7 @@ class BaseMapper(nn.Module, metaclass=ABCMeta):
         """
         if pretrained is not None:
             logger = get_root_logger()
-            print_log(f'load model from: {pretrained}', logger=logger)
+            print_log(f"load model from: {pretrained}", logger=logger)
 
     def forward_test(self, *args, **kwargs):
         """
@@ -88,11 +91,11 @@ class BaseMapper(nn.Module, metaclass=ABCMeta):
         should be double nested (i.e.  List[Tensor], List[List[dict]]), with
         the outer list indicating test time augmentations.
         """
-        
+
         if return_loss:
             return self.forward_train(*args, **kwargs)
         else:
-            kwargs.pop('rescale')
+            kwargs.pop("rescale")
             return self.forward_test(*args, **kwargs)
 
     def train_step(self, data_dict, optimizer):
@@ -123,9 +126,8 @@ class BaseMapper(nn.Module, metaclass=ABCMeta):
                 averaging the logs.
         """
         loss, log_vars, num_samples = self(**data_dict)
-        
-        outputs = dict(
-            loss=loss, log_vars=log_vars, num_samples=num_samples)
+
+        outputs = dict(loss=loss, log_vars=log_vars, num_samples=num_samples)
 
         return outputs
 
@@ -137,13 +139,11 @@ class BaseMapper(nn.Module, metaclass=ABCMeta):
         not implemented with this method, but an evaluation hook.
         """
         loss, log_vars, num_samples = self(**data)
-        
-        outputs = dict(
-            loss=loss, log_vars=log_vars, num_samples=num_samples)
+
+        outputs = dict(loss=loss, log_vars=log_vars, num_samples=num_samples)
 
         return outputs
 
-    def show_result(self,
-                    **kwargs):
+    def show_result(self, **kwargs):
         img = None
         return img

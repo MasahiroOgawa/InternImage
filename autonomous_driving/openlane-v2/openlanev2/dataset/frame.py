@@ -1,5 +1,5 @@
 # ==============================================================================
-# Binaries and/or source for the following packages or projects 
+# Binaries and/or source for the following packages or projects
 # are presented under one or more of the following open source licenses:
 # frame.py    The OpenLane-V2 Dataset Authors    Apache License, Version 2.0
 #
@@ -31,7 +31,8 @@ class Frame:
     A data structure containing meta data of a frame.
 
     """
-    def __init__(self, root_path : str, meta : dict) -> None:
+
+    def __init__(self, root_path: str, meta: dict) -> None:
         r"""
         Parameters
         ----------
@@ -53,7 +54,7 @@ class Frame:
             A list of str.
 
         """
-        return list(self.meta['sensor'].keys())
+        return list(self.meta["sensor"].keys())
 
     def get_pose(self) -> dict:
         r"""
@@ -65,9 +66,9 @@ class Frame:
             {'rotation': [3, 3], 'translation': [3, ]}.
 
         """
-        return self.meta['pose']
+        return self.meta["pose"]
 
-    def get_image_path(self, camera : str) -> str:
+    def get_image_path(self, camera: str) -> str:
         r"""
         Retuens the image path given a camera.
 
@@ -83,7 +84,7 @@ class Frame:
         """
         return f'{self.root_path}/{self.meta["sensor"][camera]["image_path"]}'
 
-    def get_rgb_image(self, camera : str) -> np.ndarray:
+    def get_rgb_image(self, camera: str) -> np.ndarray:
         r"""
         Retuens the RGB image given a camera.
 
@@ -100,7 +101,7 @@ class Frame:
         image_path = self.get_image_path(camera)
         return cv2.cvtColor(io.cv2_imread(image_path), cv2.COLOR_BGR2RGB)
 
-    def get_intrinsic(self, camera : str) -> dict:
+    def get_intrinsic(self, camera: str) -> dict:
         r"""
         Retuens the intrinsic given a camera.
 
@@ -114,9 +115,9 @@ class Frame:
             {'K': [3, 3], 'distortion': [3, ]}.
 
         """
-        return self.meta['sensor'][camera]['intrinsic']
+        return self.meta["sensor"][camera]["intrinsic"]
 
-    def get_extrinsic(self, camera : str) -> dict:
+    def get_extrinsic(self, camera: str) -> dict:
         r"""
         Retuens the extrinsic given a camera.
 
@@ -130,7 +131,7 @@ class Frame:
             {'rotation': [3, 3], 'translation': [3, ]}.
 
         """
-        return self.meta['sensor'][camera]['extrinsic']
+        return self.meta["sensor"][camera]["extrinsic"]
 
     def get_annotations(self) -> dict:
         r"""
@@ -142,10 +143,10 @@ class Frame:
             {'lane_centerline': list, 'traffic_element': list, 'topology_lclc': list, 'topology_lcte': list}.
 
         """
-        if 'annotation' not in self.meta:
+        if "annotation" not in self.meta:
             return None
         else:
-            return self.meta['annotation']
+            return self.meta["annotation"]
 
     def get_annotations_lane_centerlines(self) -> list:
         r"""
@@ -157,7 +158,7 @@ class Frame:
             [{'id': int, 'points': [n, 3]}].
         """
         result = self.get_annotations()
-        return result['lane_centerline'] if result is not None else result
+        return result["lane_centerline"] if result is not None else result
 
     def get_annotations_traffic_elements(self) -> list:
         r"""
@@ -170,7 +171,7 @@ class Frame:
 
         """
         result = self.get_annotations()
-        return result['traffic_element'] if result is not None else result
+        return result["traffic_element"] if result is not None else result
 
     def get_annotations_topology_lclc(self) -> list:
         r"""
@@ -183,7 +184,7 @@ class Frame:
 
         """
         result = self.get_annotations()
-        return result['topology_lclc'] if result is not None else result
+        return result["topology_lclc"] if result is not None else result
 
     def get_annotations_topology_lcte(self) -> list:
         r"""
@@ -193,7 +194,7 @@ class Frame:
         -------
         list
             [#lane_centerline, #traffic_element].
-        
+
         """
         result = self.get_annotations()
-        return result['topology_lcte'] if result is not None else result
+        return result["topology_lcte"] if result is not None else result

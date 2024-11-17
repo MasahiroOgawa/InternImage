@@ -1,5 +1,5 @@
 # ==============================================================================
-# Binaries and/or source for the following packages or projects 
+# Binaries and/or source for the following packages or projects
 # are presented under one or more of the following open source licenses:
 # loading.py    The OpenLane-V2 Dataset Authors    Apache License, Version 2.0
 #
@@ -29,12 +29,11 @@ from mmdet3d.datasets.pipelines import LoadMultiViewImageFromFiles
 
 @PIPELINES.register_module()
 class CustomLoadMultiViewImageFromFiles(LoadMultiViewImageFromFiles):
-
     def __call__(self, results):
-        filename = results['img_paths']
+        filename = results["img_paths"]
         img = [mmcv.imread(name, self.color_type) for name in filename]
         if self.to_float32:
             img = [i.astype(np.float32) for i in img]
-        results['img'] = img
-        results['img_shape'] = [i.shape for i in results['img']]
+        results["img"] = img
+        results["img_shape"] = [i.shape for i in results["img"]]
         return results

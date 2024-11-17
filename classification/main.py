@@ -26,15 +26,23 @@ from lr_scheduler import build_scheduler
 from optimizer import build_optimizer
 from logger import create_logger
 from utils import NativeScalerWithGradNormCount as NativeScaler
-from utils import (load_checkpoint, load_pretrained, save_checkpoint,
-                   get_grad_norm, auto_resume_helper, reduce_tensor,
-                   load_ema_checkpoint, MyAverageMeter)
+from utils import (
+    load_checkpoint,
+    load_pretrained,
+    save_checkpoint,
+    get_grad_norm,
+    auto_resume_helper,
+    reduce_tensor,
+    load_ema_checkpoint,
+    MyAverageMeter,
+)
 
 from contextlib import suppress
 from ddp_hooks import fp16_compress_hook
 
 try:
     from apex import amp
+
     has_apex = True
 except ImportError:
     has_apex = False
@@ -42,99 +50,96 @@ except ImportError:
 
 has_native_amp = False
 try:
-    if getattr(torch.cuda.amp, 'autocast') is not None:
+    if getattr(torch.cuda.amp, "autocast") is not None:
         has_native_amp = True
 except AttributeError:
     pass
 
-TORCH_VERSION = tuple(int(x) for x in torch.__version__.split('.')[:2])
+TORCH_VERSION = tuple(int(x) for x in torch.__version__.split(".")[:2])
 
 
 def obsolete_torch_version(torch_version, version_threshold):
-    return torch_version == 'parrots' or torch_version <= version_threshold
+    return torch_version == "parrots" or torch_version <= version_threshold
 
 
 def parse_option():
     parser = argparse.ArgumentParser(
-        'InternImage training and evaluation script', add_help=False)
-    parser.add_argument('--cfg',
-                        type=str,
-                        required=True,
-                        metavar="FILE",
-                        help='path to config file')
+        "InternImage training and evaluation script", add_help=False
+    )
+    parser.add_argument(
+        "--cfg", type=str, required=True, metavar="FILE", help="path to config file"
+    )
     parser.add_argument(
         "--opts",
         help="Modify config options by adding 'KEY VALUE' pairs. ",
         default=None,
-        nargs='+')
+        nargs="+",
+    )
 
     # easy config modification
-    parser.add_argument('--batch-size',
-                        type=int,
-                        help="batch size for single GPU")
-    parser.add_argument('--dataset',
-                        type=str,
-                        help='dataset name',
-                        default=None)
-    parser.add_argument('--data-path', type=str, help='path to dataset')
-    parser.add_argument('--zip',
-                        action='store_true',
-                        help='use zipped dataset instead of folder dataset')
+    parser.add_argument("--batch-size", type=int, help="batch size for single GPU")
+    parser.add_argument("--dataset", type=str, help="dataset name", default=None)
+    parser.add_argument("--data-path", type=str, help="path to dataset")
     parser.add_argument(
-        '--cache-mode',
-        type=str,
-        default='part',
-        choices=['no', 'full', 'part'],
-        help='no: no cache, '
-        'full: cache all data, '
-        'part: sharding the dataset into nonoverlapping pieces and only cache one piece'
+        "--zip",
+        action="store_true",
+        help="use zipped dataset instead of folder dataset",
     )
     parser.add_argument(
-        '--pretrained',
-        help=
-        'pretrained weight from checkpoint, could be imagenet22k pretrained weight'
-    )
-    parser.add_argument('--resume', help='resume from checkpoint')
-    parser.add_argument('--accumulation-steps',
-                        type=int,
-                        default=1,
-                        help="gradient accumulation steps")
-    parser.add_argument(
-        '--use-checkpoint',
-        action='store_true',
-        help="whether to use gradient checkpointing to save memory")
-    parser.add_argument(
-        '--amp-opt-level',
+        "--cache-mode",
         type=str,
-        default='O1',
-        choices=['O0', 'O1', 'O2'],
-        help='mixed precision opt level, if O0, no amp is used')
-    parser.add_argument(
-        '--output',
-        default='output',
-        type=str,
-        metavar='PATH',
-        help=
-        'root of output folder, the full path is <output>/<model_name>/<tag> (default: output)'
+        default="part",
+        choices=["no", "full", "part"],
+        help="no: no cache, "
+        "full: cache all data, "
+        "part: sharding the dataset into nonoverlapping pieces and only cache one piece",
     )
-    parser.add_argument('--tag', help='tag of experiment')
-    parser.add_argument('--eval',
-                        action='store_true',
-                        help='Perform evaluation only')
-    parser.add_argument('--throughput',
-                        action='store_true',
-                        help='Test throughput only')
-    parser.add_argument('--save-ckpt-num', default=1, type=int)
     parser.add_argument(
-        '--use-zero',
-        action='store_true',
-        help="whether to use ZeroRedundancyOptimizer (ZeRO) to save memory")
+        "--pretrained",
+        help="pretrained weight from checkpoint, could be imagenet22k pretrained weight",
+    )
+    parser.add_argument("--resume", help="resume from checkpoint")
+    parser.add_argument(
+        "--accumulation-steps", type=int, default=1, help="gradient accumulation steps"
+    )
+    parser.add_argument(
+        "--use-checkpoint",
+        action="store_true",
+        help="whether to use gradient checkpointing to save memory",
+    )
+    parser.add_argument(
+        "--amp-opt-level",
+        type=str,
+        default="O1",
+        choices=["O0", "O1", "O2"],
+        help="mixed precision opt level, if O0, no amp is used",
+    )
+    parser.add_argument(
+        "--output",
+        default="output",
+        type=str,
+        metavar="PATH",
+        help="root of output folder, the full path is <output>/<model_name>/<tag> (default: output)",
+    )
+    parser.add_argument("--tag", help="tag of experiment")
+    parser.add_argument("--eval", action="store_true", help="Perform evaluation only")
+    parser.add_argument(
+        "--throughput", action="store_true", help="Test throughput only"
+    )
+    parser.add_argument("--save-ckpt-num", default=1, type=int)
+    parser.add_argument(
+        "--use-zero",
+        action="store_true",
+        help="whether to use ZeroRedundancyOptimizer (ZeRO) to save memory",
+    )
 
     # distributed training
-    parser.add_argument("--local-rank",
-                        type=int,
-                        required=True,
-                        help='local rank for DistributedDataParallel')
+    parser.add_argument(
+        "--local-rank",
+        type=int,
+        required=True,
+        help="local rank for DistributedDataParallel",
+    )
 
     args, unparsed = parser.parse_known_args()
     config = get_config(args)
@@ -166,8 +171,15 @@ def throughput(data_loader, model, logger):
 
 def main(config):
     # prepare data loaders
-    dataset_train, dataset_val, dataset_test, data_loader_train, \
-        data_loader_val, data_loader_test, mixup_fn = build_loader(config)
+    (
+        dataset_train,
+        dataset_val,
+        dataset_test,
+        data_loader_train,
+        data_loader_val,
+        data_loader_test,
+        mixup_fn,
+    ) = build_loader(config)
 
     # build runner
     logger.info(f"Creating model:{config.MODEL.TYPE}/{config.MODEL.NAME}")
@@ -182,76 +194,77 @@ def main(config):
         config.defrost()
         if has_native_amp:
             config.native_amp = True
-            use_amp = 'native'
+            use_amp = "native"
         elif has_apex:
             config.apex_amp = True
-            use_amp = 'apex'
+            use_amp = "apex"
         else:
             use_amp = None
             logger.warning(
                 "Neither APEX or native Torch AMP is available, using float32. "
-                "Install NVIDA apex or upgrade to PyTorch 1.6")
+                "Install NVIDA apex or upgrade to PyTorch 1.6"
+            )
         config.freeze()
 
     # setup automatic mixed-precision (AMP) loss scaling and op casting
     amp_autocast = suppress  # do nothing
     loss_scaler = None
     if config.AMP_OPT_LEVEL != "O0":
-        if use_amp == 'apex':
-            model, optimizer = amp.initialize(model,
-                                              optimizer,
-                                              opt_level=config.AMP_OPT_LEVEL)
+        if use_amp == "apex":
+            model, optimizer = amp.initialize(
+                model, optimizer, opt_level=config.AMP_OPT_LEVEL
+            )
             loss_scaler = ApexScaler()
             if config.LOCAL_RANK == 0:
-                logger.info(
-                    'Using NVIDIA APEX AMP. Training in mixed precision.')
-        if use_amp == 'native':
+                logger.info("Using NVIDIA APEX AMP. Training in mixed precision.")
+        if use_amp == "native":
             amp_autocast = torch.cuda.amp.autocast
             loss_scaler = NativeScaler()
             if config.LOCAL_RANK == 0:
-                logger.info(
-                    'Using native Torch AMP. Training in mixed precision.')
+                logger.info("Using native Torch AMP. Training in mixed precision.")
         else:
             if config.LOCAL_RANK == 0:
-                logger.info('AMP not enabled. Training in float32.')
+                logger.info("AMP not enabled. Training in float32.")
 
     # put model on gpus
     model = torch.nn.parallel.DistributedDataParallel(
-        model, device_ids=[config.LOCAL_RANK], broadcast_buffers=False)
+        model, device_ids=[config.LOCAL_RANK], broadcast_buffers=False
+    )
 
     try:
         model.register_comm_hook(state=None, hook=fp16_compress_hook)
-        logger.info('using fp16_compress_hook!')
+        logger.info("using fp16_compress_hook!")
     except:
         logger.info("cannot register fp16_compress_hook!")
 
     model_without_ddp = model.module
 
-    n_parameters = sum(p.numel() for p in model.parameters()
-                       if p.requires_grad)
+    n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     logger.info(f"number of params: {n_parameters}")
-    if hasattr(model_without_ddp, 'flops'):
+    if hasattr(model_without_ddp, "flops"):
         flops = model_without_ddp.flops()
         logger.info(f"number of GFLOPs: {flops / 1e9}")
 
     # build learning rate scheduler
-    lr_scheduler = build_scheduler(config, optimizer, len(data_loader_train)) \
-        if not config.EVAL_MODE else None
+    lr_scheduler = (
+        build_scheduler(config, optimizer, len(data_loader_train))
+        if not config.EVAL_MODE
+        else None
+    )
 
     # build criterion
-    if config.AUG.MIXUP > 0.:
+    if config.AUG.MIXUP > 0.0:
         # smoothing is handled with mixup label transform
         criterion = SoftTargetCrossEntropy()
-    elif config.MODEL.LABEL_SMOOTHING > 0.:
-        criterion = LabelSmoothingCrossEntropy(
-            smoothing=config.MODEL.LABEL_SMOOTHING)
+    elif config.MODEL.LABEL_SMOOTHING > 0.0:
+        criterion = LabelSmoothingCrossEntropy(smoothing=config.MODEL.LABEL_SMOOTHING)
     else:
         criterion = torch.nn.CrossEntropyLoss()
 
     max_accuracy = 0.0
     max_ema_accuracy = 0.0
     # set auto resume
-    if config.MODEL.RESUME == '' and config.TRAIN.AUTO_RESUME:
+    if config.MODEL.RESUME == "" and config.TRAIN.AUTO_RESUME:
         resume_file = auto_resume_helper(config.OUTPUT)
         if resume_file:
             if config.MODEL.RESUME:
@@ -261,16 +274,15 @@ def main(config):
             config.defrost()
             config.MODEL.RESUME = resume_file
             config.freeze()
-            logger.info(f'auto resuming from {resume_file}')
+            logger.info(f"auto resuming from {resume_file}")
         else:
-            logger.info(
-                f'no checkpoint found in {config.OUTPUT}, ignoring auto resume'
-            )
+            logger.info(f"no checkpoint found in {config.OUTPUT}, ignoring auto resume")
 
     # set resume and pretrain
     if config.MODEL.RESUME:
-        max_accuracy = load_checkpoint(config, model_without_ddp, optimizer,
-                                       lr_scheduler, loss_scaler, logger)
+        max_accuracy = load_checkpoint(
+            config, model_without_ddp, optimizer, lr_scheduler, loss_scaler, logger
+        )
         if data_loader_val is not None:
             acc1, acc5, loss = validate(config, data_loader_val, model)
             logger.info(
@@ -309,86 +321,99 @@ def main(config):
     for epoch in range(config.TRAIN.START_EPOCH, config.TRAIN.EPOCHS):
         data_loader_train.sampler.set_epoch(epoch)
 
-        train_one_epoch(config,
-                        model,
-                        criterion,
-                        data_loader_train,
-                        optimizer,
-                        epoch,
-                        mixup_fn,
-                        lr_scheduler,
-                        amp_autocast,
-                        loss_scaler,
-                        model_ema=model_ema)
-        if (epoch % config.SAVE_FREQ == 0 or epoch == (config.TRAIN.EPOCHS - 1)) and \
-                config.TRAIN.OPTIMIZER.USE_ZERO:
+        train_one_epoch(
+            config,
+            model,
+            criterion,
+            data_loader_train,
+            optimizer,
+            epoch,
+            mixup_fn,
+            lr_scheduler,
+            amp_autocast,
+            loss_scaler,
+            model_ema=model_ema,
+        )
+        if (
+            epoch % config.SAVE_FREQ == 0 or epoch == (config.TRAIN.EPOCHS - 1)
+        ) and config.TRAIN.OPTIMIZER.USE_ZERO:
             optimizer.consolidate_state_dict(to=0)
-        if dist.get_rank() == 0 and (epoch % config.SAVE_FREQ == 0
-                                     or epoch == (config.TRAIN.EPOCHS - 1)):
-            save_checkpoint(config,
-                            epoch,
-                            model_without_ddp,
-                            max_accuracy,
-                            optimizer,
-                            lr_scheduler,
-                            loss_scaler,
-                            logger,
-                            model_ema=model_ema)
+        if dist.get_rank() == 0 and (
+            epoch % config.SAVE_FREQ == 0 or epoch == (config.TRAIN.EPOCHS - 1)
+        ):
+            save_checkpoint(
+                config,
+                epoch,
+                model_without_ddp,
+                max_accuracy,
+                optimizer,
+                lr_scheduler,
+                loss_scaler,
+                logger,
+                model_ema=model_ema,
+            )
         if data_loader_val is not None and epoch % config.EVAL_FREQ == 0:
             acc1, acc5, loss = validate(config, data_loader_val, model, epoch)
             logger.info(
                 f"Accuracy of the network on the {len(dataset_val)} test images: {acc1:.1f}%"
             )
             if dist.get_rank() == 0 and acc1 > max_accuracy:
-                save_checkpoint(config,
-                                epoch,
-                                model_without_ddp,
-                                max_accuracy,
-                                optimizer,
-                                lr_scheduler,
-                                loss_scaler,
-                                logger,
-                                model_ema=model_ema,
-                                best='best')
+                save_checkpoint(
+                    config,
+                    epoch,
+                    model_without_ddp,
+                    max_accuracy,
+                    optimizer,
+                    lr_scheduler,
+                    loss_scaler,
+                    logger,
+                    model_ema=model_ema,
+                    best="best",
+                )
             max_accuracy = max(max_accuracy, acc1)
-            logger.info(f'Max accuracy: {max_accuracy:.2f}%')
+            logger.info(f"Max accuracy: {max_accuracy:.2f}%")
 
             if config.TRAIN.EMA.ENABLE:
-                acc1, acc5, loss = validate(config, data_loader_val,
-                                            model_ema.ema, epoch)
+                acc1, acc5, loss = validate(
+                    config, data_loader_val, model_ema.ema, epoch
+                )
                 logger.info(
                     f"Accuracy of the ema network on the {len(dataset_val)} test images: {acc1:.1f}%"
                 )
                 if dist.get_rank() == 0 and acc1 > max_ema_accuracy:
-                    save_checkpoint(config,
-                                    epoch,
-                                    model_without_ddp,
-                                    max_accuracy,
-                                    optimizer,
-                                    lr_scheduler,
-                                    loss_scaler,
-                                    logger,
-                                    model_ema=model_ema,
-                                    best='ema_best')
+                    save_checkpoint(
+                        config,
+                        epoch,
+                        model_without_ddp,
+                        max_accuracy,
+                        optimizer,
+                        lr_scheduler,
+                        loss_scaler,
+                        logger,
+                        model_ema=model_ema,
+                        best="ema_best",
+                    )
                 max_ema_accuracy = max(max_ema_accuracy, acc1)
-                logger.info(f'Max ema accuracy: {max_ema_accuracy:.2f}%')
+                logger.info(f"Max ema accuracy: {max_ema_accuracy:.2f}%")
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-    logger.info('Training time {}'.format(total_time_str))
+    logger.info("Training time {}".format(total_time_str))
 
 
-def train_one_epoch(config,
-                    model,
-                    criterion,
-                    data_loader,
-                    optimizer,
-                    epoch,
-                    mixup_fn,
-                    lr_scheduler,
-                    amp_autocast=suppress,
-                    loss_scaler=None,
-                    model_ema=None):
+def train_one_epoch(
+    config,
+    model,
+    criterion,
+    data_loader,
+    optimizer,
+    epoch,
+    mixup_fn,
+    lr_scheduler,
+    amp_autocast=suppress,
+    loss_scaler=None,
+    model_ema=None,
+):
     model.train()
     optimizer.zero_grad()
 
@@ -401,7 +426,7 @@ def train_one_epoch(config,
     start = time.time()
     end = time.time()
 
-    amp_type = torch.float16 if config.AMP_TYPE == 'float16' else torch.bfloat16
+    amp_type = torch.float16 if config.AMP_TYPE == "float16" else torch.bfloat16
     for idx, (samples, targets) in enumerate(data_loader):
         iter_begin_time = time.time()
         samples = samples.cuda(non_blocking=True)
@@ -410,8 +435,10 @@ def train_one_epoch(config,
         if mixup_fn is not None:
             samples, targets = mixup_fn(samples, targets)
 
-        if not obsolete_torch_version(TORCH_VERSION,
-                                      (1, 9)) and config.AMP_OPT_LEVEL != "O0":
+        if (
+            not obsolete_torch_version(TORCH_VERSION, (1, 9))
+            and config.AMP_OPT_LEVEL != "O0"
+        ):
             with amp_autocast(dtype=amp_type):
                 outputs = model(samples)
         else:
@@ -419,8 +446,10 @@ def train_one_epoch(config,
                 outputs = model(samples)
 
         if config.TRAIN.ACCUMULATION_STEPS > 1:
-            if not obsolete_torch_version(
-                    TORCH_VERSION, (1, 9)) and config.AMP_OPT_LEVEL != "O0":
+            if (
+                not obsolete_torch_version(TORCH_VERSION, (1, 9))
+                and config.AMP_OPT_LEVEL != "O0"
+            ):
                 with amp_autocast(dtype=amp_type):
                     loss = criterion(outputs, targets)
                     loss = loss / config.TRAIN.ACCUMULATION_STEPS
@@ -429,15 +458,17 @@ def train_one_epoch(config,
                     loss = criterion(outputs, targets)
                     loss = loss / config.TRAIN.ACCUMULATION_STEPS
             if config.AMP_OPT_LEVEL != "O0":
-                is_second_order = hasattr(optimizer, 'is_second_order') and \
-                    optimizer.is_second_order
-                grad_norm = loss_scaler(loss,
-                                        optimizer,
-                                        clip_grad=config.TRAIN.CLIP_GRAD,
-                                        parameters=model.parameters(),
-                                        create_graph=is_second_order,
-                                        update_grad=(idx + 1) %
-                                        config.TRAIN.ACCUMULATION_STEPS == 0)
+                is_second_order = (
+                    hasattr(optimizer, "is_second_order") and optimizer.is_second_order
+                )
+                grad_norm = loss_scaler(
+                    loss,
+                    optimizer,
+                    clip_grad=config.TRAIN.CLIP_GRAD,
+                    parameters=model.parameters(),
+                    create_graph=is_second_order,
+                    update_grad=(idx + 1) % config.TRAIN.ACCUMULATION_STEPS == 0,
+                )
                 if (idx + 1) % config.TRAIN.ACCUMULATION_STEPS == 0:
                     optimizer.zero_grad()
                     if model_ema is not None:
@@ -446,7 +477,8 @@ def train_one_epoch(config,
                 loss.backward()
                 if config.TRAIN.CLIP_GRAD:
                     grad_norm = torch.nn.utils.clip_grad_norm_(
-                        model.parameters(), config.TRAIN.CLIP_GRAD)
+                        model.parameters(), config.TRAIN.CLIP_GRAD
+                    )
                 else:
                     grad_norm = get_grad_norm(model.parameters())
                 if (idx + 1) % config.TRAIN.ACCUMULATION_STEPS == 0:
@@ -457,8 +489,10 @@ def train_one_epoch(config,
             if (idx + 1) % config.TRAIN.ACCUMULATION_STEPS == 0:
                 lr_scheduler.step_update(epoch * num_steps + idx)
         else:
-            if not obsolete_torch_version(
-                    TORCH_VERSION, (1, 9)) and config.AMP_OPT_LEVEL != "O0":
+            if (
+                not obsolete_torch_version(TORCH_VERSION, (1, 9))
+                and config.AMP_OPT_LEVEL != "O0"
+            ):
                 with amp_autocast(dtype=amp_type):
                     loss = criterion(outputs, targets)
             else:
@@ -466,22 +500,25 @@ def train_one_epoch(config,
                     loss = criterion(outputs, targets)
             optimizer.zero_grad()
             if config.AMP_OPT_LEVEL != "O0":
-                is_second_order = hasattr(optimizer, 'is_second_order') and \
-                    optimizer.is_second_order
-                grad_norm = loss_scaler(loss,
-                                        optimizer,
-                                        clip_grad=config.TRAIN.CLIP_GRAD,
-                                        parameters=model.parameters(),
-                                        create_graph=is_second_order,
-                                        update_grad=(idx + 1) %
-                                        config.TRAIN.ACCUMULATION_STEPS == 0)
+                is_second_order = (
+                    hasattr(optimizer, "is_second_order") and optimizer.is_second_order
+                )
+                grad_norm = loss_scaler(
+                    loss,
+                    optimizer,
+                    clip_grad=config.TRAIN.CLIP_GRAD,
+                    parameters=model.parameters(),
+                    create_graph=is_second_order,
+                    update_grad=(idx + 1) % config.TRAIN.ACCUMULATION_STEPS == 0,
+                )
                 if model_ema is not None:
                     model_ema.update(model)
             else:
                 loss.backward()
                 if config.TRAIN.CLIP_GRAD:
                     grad_norm = torch.nn.utils.clip_grad_norm_(
-                        model.parameters(), config.TRAIN.CLIP_GRAD)
+                        model.parameters(), config.TRAIN.CLIP_GRAD
+                    )
                 else:
                     grad_norm = get_grad_norm(model.parameters())
                 optimizer.step()
@@ -500,17 +537,18 @@ def train_one_epoch(config,
         end = time.time()
 
         if idx % config.PRINT_FREQ == 0:
-            lr = optimizer.param_groups[0]['lr']
+            lr = optimizer.param_groups[0]["lr"]
             memory_used = torch.cuda.max_memory_allocated() / (1024.0 * 1024.0)
             etas = batch_time.avg * (num_steps - idx)
             logger.info(
-                f'Train: [{epoch}/{config.TRAIN.EPOCHS}][{idx}/{num_steps}]\t'
-                f'eta {datetime.timedelta(seconds=int(etas))} lr {lr:.6f}\t'
-                f'time {batch_time.val:.4f} ({batch_time.avg:.4f})\t'
-                f'model_time {model_time.val:.4f} ({model_time.avg:.4f})\t'
-                f'loss {loss_meter.val:.4f} ({loss_meter.avg:.4f})\t'
-                f'grad_norm {norm_meter.val:.4f} ({norm_meter.avg:.4f}/{norm_meter.var:.4f})\t'
-                f'mem {memory_used:.0f}MB')
+                f"Train: [{epoch}/{config.TRAIN.EPOCHS}][{idx}/{num_steps}]\t"
+                f"eta {datetime.timedelta(seconds=int(etas))} lr {lr:.6f}\t"
+                f"time {batch_time.val:.4f} ({batch_time.avg:.4f})\t"
+                f"model_time {model_time.val:.4f} ({model_time.avg:.4f})\t"
+                f"loss {loss_meter.val:.4f} ({loss_meter.avg:.4f})\t"
+                f"grad_norm {norm_meter.val:.4f} ({norm_meter.avg:.4f}/{norm_meter.var:.4f})\t"
+                f"mem {memory_used:.0f}MB"
+            )
     epoch_time = time.time() - start
     logger.info(
         f"EPOCH {epoch} training takes {datetime.timedelta(seconds=int(epoch_time))}"
@@ -535,8 +573,8 @@ def validate(config, data_loader, model, epoch=None):
 
         # convert 22k to 1k to evaluate
         if output.size(-1) == 21841:
-            convert_file = './meta_data/map22kto1k.txt'
-            with open(convert_file, 'r') as f:
+            convert_file = "./meta_data/map22kto1k.txt"
+            with open(convert_file, "r") as f:
                 convert_list = [int(line) for line in f.readlines()]
             output = output[:, convert_list]
 
@@ -558,33 +596,34 @@ def validate(config, data_loader, model, epoch=None):
 
         if idx % config.PRINT_FREQ == 0:
             memory_used = torch.cuda.max_memory_allocated() / (1024.0 * 1024.0)
-            logger.info(f'Test: [{idx}/{len(data_loader)}]\t'
-                        f'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                        f'Loss {loss_meter.val:.4f} ({loss_meter.avg:.4f})\t'
-                        f'Acc@1 {acc1_meter.val:.3f} ({acc1_meter.avg:.3f})\t'
-                        f'Acc@5 {acc5_meter.val:.3f} ({acc5_meter.avg:.3f})\t'
-                        f'Mem {memory_used:.0f}MB')
+            logger.info(
+                f"Test: [{idx}/{len(data_loader)}]\t"
+                f"Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t"
+                f"Loss {loss_meter.val:.4f} ({loss_meter.avg:.4f})\t"
+                f"Acc@1 {acc1_meter.val:.3f} ({acc1_meter.avg:.3f})\t"
+                f"Acc@5 {acc5_meter.val:.3f} ({acc5_meter.avg:.3f})\t"
+                f"Mem {memory_used:.0f}MB"
+            )
     if epoch is not None:
         logger.info(
-            f'[Epoch:{epoch}] * Acc@1 {acc1_meter.avg:.3f} Acc@5 {acc5_meter.avg:.3f}'
+            f"[Epoch:{epoch}] * Acc@1 {acc1_meter.avg:.3f} Acc@5 {acc5_meter.avg:.3f}"
         )
     else:
-        logger.info(
-            f' * Acc@1 {acc1_meter.avg:.3f} Acc@5 {acc5_meter.avg:.3f}')
+        logger.info(f" * Acc@1 {acc1_meter.avg:.3f} Acc@5 {acc5_meter.avg:.3f}")
 
     return acc1_meter.avg, acc5_meter.avg, loss_meter.avg
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     _, config = parse_option()
 
     if config.AMP_OPT_LEVEL != "O0":
         assert has_native_amp, "Please update pytorch(1.6+) to support amp!"
 
     # init distributed env
-    if 'SLURM_PROCID' in os.environ and int(os.environ['SLURM_TASKS_PER_NODE']) != 1:
+    if "SLURM_PROCID" in os.environ and int(os.environ["SLURM_TASKS_PER_NODE"]) != 1:
         print("\nDist init: SLURM")
-        rank = int(os.environ['SLURM_PROCID'])
+        rank = int(os.environ["SLURM_PROCID"])
         gpu = rank % torch.cuda.device_count()
         config.defrost()
         config.LOCAL_RANK = gpu
@@ -594,27 +633,25 @@ if __name__ == '__main__':
         if "MASTER_PORT" not in os.environ:
             os.environ["MASTER_PORT"] = "29501"
         node_list = os.environ["SLURM_NODELIST"]
-        addr = subprocess.getoutput(
-            f"scontrol show hostname {node_list} | head -n1")
+        addr = subprocess.getoutput(f"scontrol show hostname {node_list} | head -n1")
         if "MASTER_ADDR" not in os.environ:
             os.environ["MASTER_ADDR"] = addr
 
-        os.environ['RANK'] = str(rank)
-        os.environ['LOCAL_RANK'] = str(gpu)
-        os.environ['LOCAL_SIZE'] = str(torch.cuda.device_count())
-        os.environ['WORLD_SIZE'] = str(world_size)
-    if 'RANK' in os.environ and 'WORLD_SIZE' in os.environ:
+        os.environ["RANK"] = str(rank)
+        os.environ["LOCAL_RANK"] = str(gpu)
+        os.environ["LOCAL_SIZE"] = str(torch.cuda.device_count())
+        os.environ["WORLD_SIZE"] = str(world_size)
+    if "RANK" in os.environ and "WORLD_SIZE" in os.environ:
         rank = int(os.environ["RANK"])
-        world_size = int(os.environ['WORLD_SIZE'])
+        world_size = int(os.environ["WORLD_SIZE"])
         print(f"RANK and WORLD_SIZE in environ: {rank}/{world_size}")
     else:
         rank = -1
         world_size = -1
     torch.cuda.set_device(config.LOCAL_RANK)
-    torch.distributed.init_process_group(backend='nccl',
-                                         init_method='env://',
-                                         world_size=world_size,
-                                         rank=rank)
+    torch.distributed.init_process_group(
+        backend="nccl", init_method="env://", world_size=world_size, rank=rank
+    )
     torch.distributed.barrier()
 
     seed = config.SEED + dist.get_rank()
@@ -625,16 +662,21 @@ if __name__ == '__main__':
     cudnn.benchmark = True
 
     # linear scale the learning rate according to total batch size, may not be optimal
-    linear_scaled_lr = config.TRAIN.BASE_LR * \
-        config.DATA.BATCH_SIZE * dist.get_world_size() / 512.0
-    linear_scaled_warmup_lr = config.TRAIN.WARMUP_LR * \
-        config.DATA.BATCH_SIZE * dist.get_world_size() / 512.0
-    linear_scaled_min_lr = config.TRAIN.MIN_LR * \
-        config.DATA.BATCH_SIZE * dist.get_world_size() / 512.0
+    linear_scaled_lr = (
+        config.TRAIN.BASE_LR * config.DATA.BATCH_SIZE * dist.get_world_size() / 512.0
+    )
+    linear_scaled_warmup_lr = (
+        config.TRAIN.WARMUP_LR * config.DATA.BATCH_SIZE * dist.get_world_size() / 512.0
+    )
+    linear_scaled_min_lr = (
+        config.TRAIN.MIN_LR * config.DATA.BATCH_SIZE * dist.get_world_size() / 512.0
+    )
     # gradient accumulation also need to scale the learning rate
     if config.TRAIN.ACCUMULATION_STEPS > 1:
         linear_scaled_lr = linear_scaled_lr * config.TRAIN.ACCUMULATION_STEPS
-        linear_scaled_warmup_lr = linear_scaled_warmup_lr * config.TRAIN.ACCUMULATION_STEPS
+        linear_scaled_warmup_lr = (
+            linear_scaled_warmup_lr * config.TRAIN.ACCUMULATION_STEPS
+        )
         linear_scaled_min_lr = linear_scaled_min_lr * config.TRAIN.ACCUMULATION_STEPS
     config.defrost()
     config.TRAIN.BASE_LR = linear_scaled_lr
@@ -645,9 +687,9 @@ if __name__ == '__main__':
     config.freeze()
 
     os.makedirs(config.OUTPUT, exist_ok=True)
-    logger = create_logger(output_dir=config.OUTPUT,
-                           dist_rank=dist.get_rank(),
-                           name=f"{config.MODEL.NAME}")
+    logger = create_logger(
+        output_dir=config.OUTPUT, dist_rank=dist.get_rank(), name=f"{config.MODEL.NAME}"
+    )
 
     if dist.get_rank() == 0:
         path = os.path.join(config.OUTPUT, "config.json")

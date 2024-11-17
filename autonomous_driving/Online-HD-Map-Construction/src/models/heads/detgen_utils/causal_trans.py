@@ -57,8 +57,7 @@ class CausalTransformerDecoder(nn.TransformerDecoder):
 
         if self.training:
             if cache is not None:
-                raise ValueError(
-                    "cache parameter should be None in training mode")
+                raise ValueError("cache parameter should be None in training mode")
             for mod in self.layers:
                 output = mod(
                     output,
@@ -74,12 +73,15 @@ class CausalTransformerDecoder(nn.TransformerDecoder):
         else:
             new_token_cache = []
             for i, mod in enumerate(self.layers):
-                output = mod(output, memory,
-                             memory_mask=memory_mask,
-                             tgt_key_padding_mask=tgt_key_padding_mask,
-                             memory_key_padding_mask=memory_key_padding_mask,
-                             causal_mask=causal_mask,
-                             only_last=True if cache is not None else False)
+                output = mod(
+                    output,
+                    memory,
+                    memory_mask=memory_mask,
+                    tgt_key_padding_mask=tgt_key_padding_mask,
+                    memory_key_padding_mask=memory_key_padding_mask,
+                    causal_mask=causal_mask,
+                    only_last=True if cache is not None else False,
+                )
                 new_token_cache.append(output)
 
                 # use the pre_calculated intermediate parameters.
@@ -88,7 +90,8 @@ class CausalTransformerDecoder(nn.TransformerDecoder):
 
             if cache is not None:
                 new_cache = torch.cat(
-                    [cache, torch.stack(new_token_cache, dim=0)], dim=1)
+                    [cache, torch.stack(new_token_cache, dim=0)], dim=1
+                )
             else:
                 new_cache = torch.stack(new_token_cache, dim=0)
 
@@ -96,22 +99,41 @@ class CausalTransformerDecoder(nn.TransformerDecoder):
 
 
 class CausalTransformerDecoderLayer(nn.TransformerDecoderLayer):
-
-    def __init__(self, *args, re_zero=True, norm_first=True, map_attn_cfg=None, **kwargs):
-        '''
-            Args:
-                re_zero: If True, alpha scale residuals with zero init.
-        '''
+    def __init__(
+        self, *args, re_zero=True, norm_first=True, map_attn_cfg=None, **kwargs
+    ):
+        """
+        Args:
+            re_zero: If True, alpha scale residuals with zero init.
+        """
         super(CausalTransformerDecoderLayer, self).__init__(*args, **kwargs)
 
         if re_zero:
-            self.res_weight1 = nn.Parameter(torch.FloatTensor([0, ]))
-            self.res_weight2 = nn.Parameter(torch.FloatTensor([0, ]))
-            self.res_weight3 = nn.Parameter(torch.FloatTensor([0, ]))
+            self.res_weight1 = nn.Parameter(
+                torch.FloatTensor(
+                    [
+                        0,
+                    ]
+                )
+            )
+            self.res_weight2 = nn.Parameter(
+                torch.FloatTensor(
+                    [
+                        0,
+                    ]
+                )
+            )
+            self.res_weight3 = nn.Parameter(
+                torch.FloatTensor(
+                    [
+                        0,
+                    ]
+                )
+            )
         else:
-            self.res_weight1 = 1.
-            self.res_weight2 = 1.
-            self.res_weight3 = 1.
+            self.res_weight1 = 1.0
+            self.res_weight2 = 1.0
+            self.res_weight3 = 1.0
 
         self.norm_first = norm_first
 
@@ -120,43 +142,43 @@ class CausalTransformerDecoderLayer(nn.TransformerDecoderLayer):
             self.map_attn = build_attention(map_attn_cfg)
 
     def forward(
-            self,
-            tgt: Tensor,
-            memory: Optional[Tensor] = None,
-            memory_mask: Optional[Tensor] = None,
-            tgt_key_padding_mask: Optional[Tensor] = None,
-            memory_key_padding_mask: Optional[Tensor] = None,
-            causal_mask: Optional[Tensor] = None,
-            query: Optional[Tensor] = None,
-            only_last=False) -> Tensor:
+        self,
+        tgt: Tensor,
+        memory: Optional[Tensor] = None,
+        memory_mask: Optional[Tensor] = None,
+        tgt_key_padding_mask: Optional[Tensor] = None,
+        memory_key_padding_mask: Optional[Tensor] = None,
+        causal_mask: Optional[Tensor] = None,
+        query: Optional[Tensor] = None,
+        only_last=False,
+    ) -> Tensor:
         """
         Args:
             see CausalTransformerDecoder
-            query is not None model will perform query stream 
+            query is not None model will perform query stream
         Returns:
             Tensor:
                 If training: embedding of the whole layer: seq_len x bsz x hidden_dim
                 If eval mode: embedding of last token: 1 x bsz x hidden_dim
         """
         if not self.norm_first:
-            raise ValueError(
-                "norm_first parameter should be True!")
+            raise ValueError("norm_first parameter should be True!")
 
         if self.training:
             # the official Pytorch implementation
             x = tgt
             if query is not None:
                 x = query
-            
-            x = x + self.res_weight1 * \
-                self._sa_block(self.norm1(x), self.norm1(tgt), causal_mask,
-                                tgt_key_padding_mask)
+
+            x = x + self.res_weight1 * self._sa_block(
+                self.norm1(x), self.norm1(tgt), causal_mask, tgt_key_padding_mask
+            )
             if memory is not None:
-                x = x + self.res_weight2 * \
-                    self._mha_block(self.norm2(x), memory,
-                                    memory_mask, memory_key_padding_mask)
-            x = x + self.res_weight3*self._ff_block(self.norm3(x))
-            
+                x = x + self.res_weight2 * self._mha_block(
+                    self.norm2(x), memory, memory_mask, memory_key_padding_mask
+                )
+            x = x + self.res_weight3 * self._ff_block(self.norm3(x))
+
             return x
 
         # This part is adapted from the official Pytorch implementation
@@ -169,46 +191,64 @@ class CausalTransformerDecoderLayer(nn.TransformerDecoderLayer):
 
         if only_last:
             x = x[-1:]
-            
+
         if causal_mask is not None:
-            attn_mask = causal_mask 
+            attn_mask = causal_mask
             if only_last:
-                attn_mask = attn_mask[-1:]   # XXX
+                attn_mask = attn_mask[-1:]  # XXX
         else:
             attn_mask = None
-            
+
         # efficient self attention
-        x = x + self.res_weight1 * \
-            self._sa_block(self.norm1(x), self.norm1(tgt), attn_mask,
-                           tgt_key_padding_mask)
+        x = x + self.res_weight1 * self._sa_block(
+            self.norm1(x), self.norm1(tgt), attn_mask, tgt_key_padding_mask
+        )
 
         # encoder-decoder attention
         if memory is not None:
-            x = x + self.res_weight2 * \
-                self._mha_block(self.norm2(x), memory,
-                                memory_mask, memory_key_padding_mask)
+            x = x + self.res_weight2 * self._mha_block(
+                self.norm2(x), memory, memory_mask, memory_key_padding_mask
+            )
 
         # final feed-forward network
-        x = x + self.res_weight3*self._ff_block(self.norm3(x))
+        x = x + self.res_weight3 * self._ff_block(self.norm3(x))
 
         return x
 
     # self-attention block
-    def _sa_block(self, x: Tensor, mem: Tensor,
-                  attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor]) -> Tensor:
-        x = self.self_attn(x, mem, mem,
-                           attn_mask=attn_mask,
-                           key_padding_mask=key_padding_mask,
-                           need_weights=False)[0]
+    def _sa_block(
+        self,
+        x: Tensor,
+        mem: Tensor,
+        attn_mask: Optional[Tensor],
+        key_padding_mask: Optional[Tensor],
+    ) -> Tensor:
+        x = self.self_attn(
+            x,
+            mem,
+            mem,
+            attn_mask=attn_mask,
+            key_padding_mask=key_padding_mask,
+            need_weights=False,
+        )[0]
         return self.dropout1(x)
 
     # multihead attention block
-    def _mha_block(self, x: Tensor, mem: Tensor,
-                   attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor]) -> Tensor:
-        x = self.multihead_attn(x, mem, mem,
-                                attn_mask=attn_mask,
-                                key_padding_mask=key_padding_mask,
-                                need_weights=False)[0]
+    def _mha_block(
+        self,
+        x: Tensor,
+        mem: Tensor,
+        attn_mask: Optional[Tensor],
+        key_padding_mask: Optional[Tensor],
+    ) -> Tensor:
+        x = self.multihead_attn(
+            x,
+            mem,
+            mem,
+            attn_mask=attn_mask,
+            key_padding_mask=key_padding_mask,
+            need_weights=False,
+        )[0]
         return self.dropout2(x)
 
     # feed forward block
@@ -218,24 +258,40 @@ class CausalTransformerDecoderLayer(nn.TransformerDecoderLayer):
 
 
 class PolygenTransformerEncoderLayer(nn.TransformerEncoderLayer):
-
     def __init__(self, *args, re_zero=True, norm_first=True, **kwargs):
-        '''
-            Args:
-                re_zero: If True, alpha scale residuals with zero init.
-        '''
+        """
+        Args:
+            re_zero: If True, alpha scale residuals with zero init.
+        """
         super(PolygenTransformerEncoderLayer, self).__init__(*args, **kwargs)
 
         if re_zero:
-            self.res_weight1 = nn.Parameter(torch.FloatTensor([0, ]))
-            self.res_weight2 = nn.Parameter(torch.FloatTensor([0, ]))
+            self.res_weight1 = nn.Parameter(
+                torch.FloatTensor(
+                    [
+                        0,
+                    ]
+                )
+            )
+            self.res_weight2 = nn.Parameter(
+                torch.FloatTensor(
+                    [
+                        0,
+                    ]
+                )
+            )
         else:
-            self.res_weight1 = 1.
-            self.res_weight2 = 1.
+            self.res_weight1 = 1.0
+            self.res_weight2 = 1.0
 
         self.norm_first = norm_first
 
-    def forward(self, src: Tensor, src_mask: Optional[Tensor] = None, src_key_padding_mask: Optional[Tensor] = None) -> Tensor:
+    def forward(
+        self,
+        src: Tensor,
+        src_mask: Optional[Tensor] = None,
+        src_key_padding_mask: Optional[Tensor] = None,
+    ) -> Tensor:
         r"""Pass the input through the encoder layer.
         Args:
             src: the sequence to the encoder layer (required).
@@ -249,23 +305,30 @@ class PolygenTransformerEncoderLayer(nn.TransformerEncoderLayer):
 
         x = src
         if self.norm_first:
-            x = x + self.res_weight1*self._sa_block(self.norm1(x), src_mask,
-                                                    src_key_padding_mask)
-            x = x + self.res_weight2*self._ff_block(self.norm2(x))
+            x = x + self.res_weight1 * self._sa_block(
+                self.norm1(x), src_mask, src_key_padding_mask
+            )
+            x = x + self.res_weight2 * self._ff_block(self.norm2(x))
         else:
             x = self.norm1(
-                x + self.res_weight1*self._sa_block(x, src_mask, src_key_padding_mask))
-            x = self.norm2(x + self.res_weight2*self._ff_block(x))
+                x + self.res_weight1 * self._sa_block(x, src_mask, src_key_padding_mask)
+            )
+            x = self.norm2(x + self.res_weight2 * self._ff_block(x))
 
         return x
 
     # self-attention block
-    def _sa_block(self, x: Tensor,
-                  attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor]) -> Tensor:
-        x = self.self_attn(x, x, x,
-                           attn_mask=attn_mask,
-                           key_padding_mask=key_padding_mask,
-                           need_weights=False)[0]
+    def _sa_block(
+        self, x: Tensor, attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor]
+    ) -> Tensor:
+        x = self.self_attn(
+            x,
+            x,
+            x,
+            attn_mask=attn_mask,
+            key_padding_mask=key_padding_mask,
+            need_weights=False,
+        )[0]
         return self.dropout1(x)
 
     # feed forward block
@@ -275,7 +338,7 @@ class PolygenTransformerEncoderLayer(nn.TransformerEncoderLayer):
 
 
 def generate_square_subsequent_mask(sz: int, device: str = "cpu") -> torch.Tensor:
-    """ Generate the attention mask for causal decoding """
+    """Generate the attention mask for causal decoding"""
     mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
     mask = (
         mask.float()

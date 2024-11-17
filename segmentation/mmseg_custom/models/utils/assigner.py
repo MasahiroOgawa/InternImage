@@ -14,6 +14,7 @@ except ImportError:
 
 class AssignResult(metaclass=ABCMeta):
     """Collection of assign results."""
+
     def __init__(self, num_gts, gt_inds, labels):
         self.num_gts = num_gts
         self.gt_inds = gt_inds
@@ -22,15 +23,16 @@ class AssignResult(metaclass=ABCMeta):
     @property
     def info(self):
         info = {
-            'num_gts': self.num_gts,
-            'gt_inds': self.gt_inds,
-            'labels': self.labels,
+            "num_gts": self.num_gts,
+            "gt_inds": self.gt_inds,
+            "labels": self.labels,
         }
         return info
 
 
 class BaseAssigner(metaclass=ABCMeta):
     """Base assigner that assigns boxes to ground truth boxes."""
+
     @abstractmethod
     def assign(self, masks, gt_masks, gt_masks_ignore=None, gt_labels=None):
         """Assign boxes to either a ground truth boxes or a negative boxes."""
@@ -58,22 +60,27 @@ class MaskHungarianAssigner(BaseAssigner):
         mask_cost (obj:`mmcv.ConfigDict`|dict): Mask cost config.
         dice_cost (obj:`mmcv.ConfigDict`|dict): Dice cost config.
     """
-    def __init__(self,
-                 cls_cost=dict(type='ClassificationCost', weight=1.0),
-                 dice_cost=dict(type='DiceCost', weight=1.0),
-                 mask_cost=dict(type='MaskFocalCost', weight=1.0)):
+
+    def __init__(
+        self,
+        cls_cost=dict(type="ClassificationCost", weight=1.0),
+        dice_cost=dict(type="DiceCost", weight=1.0),
+        mask_cost=dict(type="MaskFocalCost", weight=1.0),
+    ):
         self.cls_cost = build_match_cost(cls_cost)
         self.dice_cost = build_match_cost(dice_cost)
         self.mask_cost = build_match_cost(mask_cost)
 
-    def assign(self,
-               cls_pred,
-               mask_pred,
-               gt_labels,
-               gt_masks,
-               img_meta,
-               gt_masks_ignore=None,
-               eps=1e-7):
+    def assign(
+        self,
+        cls_pred,
+        mask_pred,
+        gt_labels,
+        gt_masks,
+        img_meta,
+        gt_masks_ignore=None,
+        eps=1e-7,
+    ):
         """Computes one-to-one matching based on the weighted costs.
 
         This method assign each query prediction to a ground truth or
@@ -104,24 +111,20 @@ class MaskHungarianAssigner(BaseAssigner):
         Returns:
             :obj:`AssignResult`: The assigned result.
         """
-        assert gt_masks_ignore is None, \
-            'Only case when gt_masks_ignore is None is supported.'
+        assert (
+            gt_masks_ignore is None
+        ), "Only case when gt_masks_ignore is None is supported."
         num_gts, num_queries = gt_labels.shape[0], cls_pred.shape[0]
 
         # 1. assign -1 by default
-        assigned_gt_inds = cls_pred.new_full((num_queries, ),
-                                             -1,
-                                             dtype=torch.long)
-        assigned_labels = cls_pred.new_full((num_queries, ),
-                                            -1,
-                                            dtype=torch.long)
+        assigned_gt_inds = cls_pred.new_full((num_queries,), -1, dtype=torch.long)
+        assigned_labels = cls_pred.new_full((num_queries,), -1, dtype=torch.long)
         if num_gts == 0 or num_queries == 0:
             # No ground truth or boxes, return empty assignment
             if num_gts == 0:
                 # No ground truth, assign all to background
                 assigned_gt_inds[:] = 0
-            return AssignResult(
-                num_gts, assigned_gt_inds, labels=assigned_labels)
+            return AssignResult(num_gts, assigned_gt_inds, labels=assigned_labels)
 
         # 2. compute the weighted costs
         # classification and maskcost.
@@ -147,14 +150,13 @@ class MaskHungarianAssigner(BaseAssigner):
         # 3. do Hungarian matching on CPU using linear_sum_assignment
         cost = cost.detach().cpu()
         if linear_sum_assignment is None:
-            raise ImportError('Please run "pip install scipy" '
-                              'to install scipy first.')
+            raise ImportError(
+                'Please run "pip install scipy" ' "to install scipy first."
+            )
 
         matched_row_inds, matched_col_inds = linear_sum_assignment(cost)
-        matched_row_inds = torch.from_numpy(matched_row_inds).to(
-            cls_pred.device)
-        matched_col_inds = torch.from_numpy(matched_col_inds).to(
-            cls_pred.device)
+        matched_row_inds = torch.from_numpy(matched_row_inds).to(cls_pred.device)
+        matched_col_inds = torch.from_numpy(matched_col_inds).to(cls_pred.device)
 
         # 4. assign backgrounds and foregrounds
         # assign all indices to backgrounds first

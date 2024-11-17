@@ -1,5 +1,5 @@
 # ==============================================================================
-# Binaries and/or source for the following packages or projects 
+# Binaries and/or source for the following packages or projects
 # are presented under one or more of the following open source licenses:
 # evaluate.py    The OpenLane-V2 Dataset Authors    Apache License, Version 2.0
 #
@@ -50,7 +50,7 @@ def _pr_curve(recalls, precisions):
     -------
     float
         average precision
-    
+
     Notes
     -----
     Adapted from https://github.com/Mrmoore98/VectorMapNet_code/blob/mian/plugin/datasets/evaluation/precision_recall/average_precision_gen.py#L12
@@ -70,6 +70,7 @@ def _pr_curve(recalls, precisions):
     ap /= 11
 
     return ap[0]
+
 
 def _tpfp(gts, preds, confidences, distance_matrix, distance_threshold):
     r"""
@@ -129,10 +130,13 @@ def _tpfp(gts, preds, confidences, distance_matrix, distance_threshold):
                 fp[i] = 1
         else:
             fp[i] = 1
-    
+
     return tp, fp, idx_match_gt
 
-def _inject(num_gt, pred, tp, idx_match_gt, confidence, distance_threshold, object_type):
+
+def _inject(
+    num_gt, pred, tp, idx_match_gt, confidence, distance_threshold, object_type
+):
     r"""
     Inject tp matching into predictions.
 
@@ -153,9 +157,9 @@ def _inject(num_gt, pred, tp, idx_match_gt, confidence, distance_threshold, obje
 
     """
     if tp.tolist() == []:
-        pred[f'{object_type}_{distance_threshold}_idx_match_gt'] = []
-        pred[f'{object_type}_{distance_threshold}_confidence'] = []
-        pred[f'{object_type}_{distance_threshold}_confidence_thresholds'] = []
+        pred[f"{object_type}_{distance_threshold}_idx_match_gt"] = []
+        pred[f"{object_type}_{distance_threshold}_confidence"] = []
+        pred[f"{object_type}_{distance_threshold}_confidence_thresholds"] = []
         return
 
     confidence = np.asarray(confidence)
@@ -166,13 +170,16 @@ def _inject(num_gt, pred, tp, idx_match_gt, confidence, distance_threshold, obje
     eps = np.finfo(np.float32).eps
     recalls = tps / np.maximum(num_gt, eps)
 
-    taken = np.percentile(recalls, np.arange(10, 101, 10), method='closest_observation')
+    taken = np.percentile(recalls, np.arange(10, 101, 10), method="closest_observation")
     taken_idx = {r: i for i, r in enumerate(recalls)}
     confidence_thresholds = confidence[np.asarray([taken_idx[t] for t in taken])]
 
-    pred[f'{object_type}_{distance_threshold}_idx_match_gt'] = idx_match_gt
-    pred[f'{object_type}_{distance_threshold}_confidence'] = confidence
-    pred[f'{object_type}_{distance_threshold}_confidence_thresholds'] = confidence_thresholds
+    pred[f"{object_type}_{distance_threshold}_idx_match_gt"] = idx_match_gt
+    pred[f"{object_type}_{distance_threshold}_confidence"] = confidence
+    pred[f"{object_type}_{distance_threshold}_confidence_thresholds"] = (
+        confidence_thresholds
+    )
+
 
 def _AP(gts, preds, distance_matrixs, distance_threshold, object_type, filter, inject):
     r"""
@@ -206,17 +213,23 @@ def _AP(gts, preds, distance_matrixs, distance_threshold, object_type, filter, i
     confidences = []
     num_gts = 0
     for token in gts.keys():
-        gt = [gt['points'] for gt in gts[token][object_type] if filter(gt)]
-        pred = [pred['points'] for pred in preds[token][object_type] if filter(pred)]
-        confidence = [pred['confidence'] for pred in preds[token][object_type] if filter(pred)]
+        gt = [gt["points"] for gt in gts[token][object_type] if filter(gt)]
+        pred = [pred["points"] for pred in preds[token][object_type] if filter(pred)]
+        confidence = [
+            pred["confidence"] for pred in preds[token][object_type] if filter(pred)
+        ]
         filtered_distance_matrix = distance_matrixs[token].copy()
-        filtered_distance_matrix = filtered_distance_matrix[[filter(gt) for gt in gts[token][object_type]], :]
-        filtered_distance_matrix = filtered_distance_matrix[:, [filter(pred) for pred in preds[token][object_type]]]
+        filtered_distance_matrix = filtered_distance_matrix[
+            [filter(gt) for gt in gts[token][object_type]], :
+        ]
+        filtered_distance_matrix = filtered_distance_matrix[
+            :, [filter(pred) for pred in preds[token][object_type]]
+        ]
         tp, fp, idx_match_gt = _tpfp(
-            gts=gt, 
-            preds=pred, 
-            confidences=confidence, 
-            distance_matrix=filtered_distance_matrix, 
+            gts=gt,
+            preds=pred,
+            confidences=confidence,
+            distance_matrix=filtered_distance_matrix,
             distance_threshold=distance_threshold,
         )
         tps.append(tp)
@@ -249,7 +262,10 @@ def _AP(gts, preds, distance_matrixs, distance_threshold, object_type, filter, i
     precisions = tps / np.maximum((tps + fps), eps)
     return _pr_curve(recalls=recalls, precisions=precisions)
 
-def _mAP_over_threshold(gts, preds, distance_matrixs, distance_thresholds, object_type, filter, inject):
+
+def _mAP_over_threshold(
+    gts, preds, distance_matrixs, distance_thresholds, object_type, filter, inject
+):
     r"""
     Calculate mAP over distance thresholds.
 
@@ -276,15 +292,21 @@ def _mAP_over_threshold(gts, preds, distance_matrixs, distance_thresholds, objec
         APs over all samples.
 
     """
-    return np.asarray([_AP(
-        gts=gts, 
-        preds=preds, 
-        distance_matrixs=distance_matrixs,
-        distance_threshold=distance_threshold, 
-        object_type=object_type,
-        filter=filter,
-        inject=inject,
-    ) for distance_threshold in distance_thresholds])
+    return np.asarray(
+        [
+            _AP(
+                gts=gts,
+                preds=preds,
+                distance_matrixs=distance_matrixs,
+                distance_threshold=distance_threshold,
+                object_type=object_type,
+                filter=filter,
+                inject=inject,
+            )
+            for distance_threshold in distance_thresholds
+        ]
+    )
+
 
 def _average_precision_per_vertex(gts, preds, confidences):
     r"""
@@ -334,7 +356,8 @@ def _average_precision_per_vertex(gts, preds, confidences):
     precisions = tp / np.maximum((tp + fp), eps)
 
     return np.dot(precisions, rel) / num_gts
-    
+
+
 def _AP_directerd(gts, preds):
     r"""
     Calculate average precision on the given adjacent matrixs,
@@ -375,6 +398,7 @@ def _AP_directerd(gts, preds):
 
     return acc
 
+
 def _AP_undirecterd(gts, preds):
     r"""
     Calculate average precision on the given adjacent matrixs,
@@ -403,7 +427,7 @@ def _AP_undirecterd(gts, preds):
         confidence = pred[pred > THRESHOLD_RELATIONSHIP_CONFIDENCE]
         pred = indices[pred > THRESHOLD_RELATIONSHIP_CONFIDENCE]
         acc.append(_average_precision_per_vertex(gt, pred, confidence))
-    
+
     indices = np.arange(gts.shape[0])
     for gt, pred in zip(gts.T, preds.T):
         gt = indices[gt.astype(bool)]
@@ -412,6 +436,7 @@ def _AP_undirecterd(gts, preds):
         acc.append(_average_precision_per_vertex(gt, pred, confidence))
 
     return acc
+
 
 def _mAP_topology_lclc(gts, preds, distance_thresholds):
     r"""
@@ -436,27 +461,47 @@ def _mAP_topology_lclc(gts, preds, distance_thresholds):
     for r in range(10):
         for distance_threshold in distance_thresholds:
             for token in gts.keys():
-                preds_topology_lclc_unmatched = preds[token]['topology_lclc']
+                preds_topology_lclc_unmatched = preds[token]["topology_lclc"]
 
-                idx_match_gt = preds[token][f'lane_centerline_{distance_threshold}_idx_match_gt']
-                confidence = preds[token][f'lane_centerline_{distance_threshold}_confidence']
-                confidence_thresholds = preds[token][f'lane_centerline_{distance_threshold}_confidence_thresholds']
-                gt_pred = {m: i for i, (m, c) in enumerate(zip(idx_match_gt, confidence)) if c >= confidence_thresholds[r] and not np.isnan(m)}
+                idx_match_gt = preds[token][
+                    f"lane_centerline_{distance_threshold}_idx_match_gt"
+                ]
+                confidence = preds[token][
+                    f"lane_centerline_{distance_threshold}_confidence"
+                ]
+                confidence_thresholds = preds[token][
+                    f"lane_centerline_{distance_threshold}_confidence_thresholds"
+                ]
+                gt_pred = {
+                    m: i
+                    for i, (m, c) in enumerate(zip(idx_match_gt, confidence))
+                    if c >= confidence_thresholds[r] and not np.isnan(m)
+                }
 
-                gts_topology_lclc = gts[token]['topology_lclc']
+                gts_topology_lclc = gts[token]["topology_lclc"]
                 if 0 in gts_topology_lclc.shape:
                     continue
 
-                preds_topology_lclc = np.ones_like(gts_topology_lclc, dtype=gts_topology_lclc.dtype) * np.nan
+                preds_topology_lclc = (
+                    np.ones_like(gts_topology_lclc, dtype=gts_topology_lclc.dtype)
+                    * np.nan
+                )
                 for i in range(preds_topology_lclc.shape[0]):
                     for j in range(preds_topology_lclc.shape[1]):
                         if i in gt_pred and j in gt_pred:
-                            preds_topology_lclc[i][j] = preds_topology_lclc_unmatched[gt_pred[i]][gt_pred[j]]
-                preds_topology_lclc[np.isnan(preds_topology_lclc)] = 1 - gts_topology_lclc[np.isnan(preds_topology_lclc)]
+                            preds_topology_lclc[i][j] = preds_topology_lclc_unmatched[
+                                gt_pred[i]
+                            ][gt_pred[j]]
+                preds_topology_lclc[np.isnan(preds_topology_lclc)] = (
+                    1 - gts_topology_lclc[np.isnan(preds_topology_lclc)]
+                )
 
-                acc.append(_AP_directerd(gts=gts_topology_lclc, preds=preds_topology_lclc))
+                acc.append(
+                    _AP_directerd(gts=gts_topology_lclc, preds=preds_topology_lclc)
+                )
 
     return np.hstack(acc).mean()
+
 
 def _mAP_topology_lcte(gts, preds, distance_thresholds):
     r"""
@@ -479,41 +524,86 @@ def _mAP_topology_lcte(gts, preds, distance_thresholds):
     """
     acc = []
     for r in range(10):
-        for distance_threshold_lane_centerline in distance_thresholds['lane_centerline']:
-            for distance_threshold_traffic_element in distance_thresholds['traffic_element']:
+        for distance_threshold_lane_centerline in distance_thresholds[
+            "lane_centerline"
+        ]:
+            for distance_threshold_traffic_element in distance_thresholds[
+                "traffic_element"
+            ]:
                 for token in gts.keys():
-                    preds_topology_lcte_unmatched = preds[token]['topology_lcte']
+                    preds_topology_lcte_unmatched = preds[token]["topology_lcte"]
 
-                    idx_match_gt_lane_centerline = preds[token][f'lane_centerline_{distance_threshold_lane_centerline}_idx_match_gt']
-                    confidence_lane_centerline = preds[token][f'lane_centerline_{distance_threshold_lane_centerline}_confidence']
-                    confidence_thresholds_lane_centerline = preds[token][f'lane_centerline_{distance_threshold_lane_centerline}_confidence_thresholds']
+                    idx_match_gt_lane_centerline = preds[token][
+                        f"lane_centerline_{distance_threshold_lane_centerline}_idx_match_gt"
+                    ]
+                    confidence_lane_centerline = preds[token][
+                        f"lane_centerline_{distance_threshold_lane_centerline}_confidence"
+                    ]
+                    confidence_thresholds_lane_centerline = preds[token][
+                        f"lane_centerline_{distance_threshold_lane_centerline}_confidence_thresholds"
+                    ]
                     gt_pred_lane_centerline = {
-                        m: i for i, (m, c) in enumerate(zip(idx_match_gt_lane_centerline, confidence_lane_centerline)) \
-                        if c >= confidence_thresholds_lane_centerline[r] and not np.isnan(m)
+                        m: i
+                        for i, (m, c) in enumerate(
+                            zip(
+                                idx_match_gt_lane_centerline, confidence_lane_centerline
+                            )
+                        )
+                        if c >= confidence_thresholds_lane_centerline[r]
+                        and not np.isnan(m)
                     }
 
-                    idx_match_gt_traffic_element = preds[token][f'traffic_element_{distance_threshold_traffic_element}_idx_match_gt']
-                    confidence_traffic_element = preds[token][f'traffic_element_{distance_threshold_traffic_element}_confidence']
-                    confidence_thresholds_traffic_element = preds[token][f'traffic_element_{distance_threshold_traffic_element}_confidence_thresholds']
+                    idx_match_gt_traffic_element = preds[token][
+                        f"traffic_element_{distance_threshold_traffic_element}_idx_match_gt"
+                    ]
+                    confidence_traffic_element = preds[token][
+                        f"traffic_element_{distance_threshold_traffic_element}_confidence"
+                    ]
+                    confidence_thresholds_traffic_element = preds[token][
+                        f"traffic_element_{distance_threshold_traffic_element}_confidence_thresholds"
+                    ]
                     gt_pred_traffic_element = {
-                        m: i for i, (m, c) in enumerate(zip(idx_match_gt_traffic_element, confidence_traffic_element)) \
-                        if c >= confidence_thresholds_traffic_element[r] and not np.isnan(m)
+                        m: i
+                        for i, (m, c) in enumerate(
+                            zip(
+                                idx_match_gt_traffic_element, confidence_traffic_element
+                            )
+                        )
+                        if c >= confidence_thresholds_traffic_element[r]
+                        and not np.isnan(m)
                     }
 
-                    gts_topology_lcte = gts[token]['topology_lcte']
+                    gts_topology_lcte = gts[token]["topology_lcte"]
                     if 0 in gts_topology_lcte.shape:
                         continue
 
-                    preds_topology_lcte = np.ones_like(gts_topology_lcte, dtype=gts_topology_lcte.dtype) * np.nan
+                    preds_topology_lcte = (
+                        np.ones_like(gts_topology_lcte, dtype=gts_topology_lcte.dtype)
+                        * np.nan
+                    )
                     for i in range(preds_topology_lcte.shape[0]):
                         for j in range(preds_topology_lcte.shape[1]):
-                            if i in gt_pred_lane_centerline and j in gt_pred_traffic_element:
-                                preds_topology_lcte[i][j] = preds_topology_lcte_unmatched[gt_pred_lane_centerline[i]][gt_pred_traffic_element[j]]
-                    preds_topology_lcte[np.isnan(preds_topology_lcte)] = 1 - gts_topology_lcte[np.isnan(preds_topology_lcte)]
+                            if (
+                                i in gt_pred_lane_centerline
+                                and j in gt_pred_traffic_element
+                            ):
+                                preds_topology_lcte[i][j] = (
+                                    preds_topology_lcte_unmatched[
+                                        gt_pred_lane_centerline[i]
+                                    ][gt_pred_traffic_element[j]]
+                                )
+                    preds_topology_lcte[np.isnan(preds_topology_lcte)] = (
+                        1 - gts_topology_lcte[np.isnan(preds_topology_lcte)]
+                    )
 
-                    acc.append(_AP_undirecterd(gts=gts_topology_lcte, preds=preds_topology_lcte))
-    
+                    acc.append(
+                        _AP_undirecterd(
+                            gts=gts_topology_lcte, preds=preds_topology_lcte
+                        )
+                    )
+
     return np.hstack(acc).mean()
+
 
 def evaluate(ground_truth, predictions, verbose=True):
     r"""
@@ -536,63 +626,67 @@ def evaluate(ground_truth, predictions, verbose=True):
     One of pred_path and pred_dict must be None,
     these two arguments provide flexibility for formatting the results only.
 
-    """    
+    """
     if isinstance(ground_truth, str):
         ground_truth = io.pickle_load(ground_truth)
 
     if predictions is None:
         preds = {}
-        print('\nDummy evaluation on ground truth.\n')
+        print("\nDummy evaluation on ground truth.\n")
     else:
         if isinstance(predictions, str):
             predictions = io.pickle_load(predictions)
-        check_results(predictions) # check results format
-        predictions = predictions['results']
+        check_results(predictions)  # check results format
+        predictions = predictions["results"]
 
     gts = {}
     preds = {}
     for token in ground_truth.keys():
-        gts[token] = ground_truth[token]['annotation']
+        gts[token] = ground_truth[token]["annotation"]
         if predictions is None:
             preds[token] = gts[token]
-            for i, _ in enumerate(preds[token]['lane_centerline']):
-                preds[token]['lane_centerline'][i]['confidence'] = np.float32(1)
-            for i, _ in enumerate(preds[token]['traffic_element']):
-                preds[token]['traffic_element'][i]['confidence'] = np.float32(1)
+            for i, _ in enumerate(preds[token]["lane_centerline"]):
+                preds[token]["lane_centerline"][i]["confidence"] = np.float32(1)
+            for i, _ in enumerate(preds[token]["traffic_element"]):
+                preds[token]["traffic_element"][i]["confidence"] = np.float32(1)
         else:
-            preds[token] = predictions[token]['predictions']
+            preds[token] = predictions[token]["predictions"]
 
-    assert set(gts.keys()) == set(preds.keys()), '#frame differs'
+    assert set(gts.keys()) == set(preds.keys()), "#frame differs"
 
     """
         calculate distances between gts and preds    
     """
 
     distance_matrixs = {
-        'frechet': {},
-        'iou': {},
+        "frechet": {},
+        "iou": {},
     }
 
-    for token in tqdm(gts.keys(), desc='calculating distances:', ncols=80, disable=not verbose):
+    for token in tqdm(
+        gts.keys(), desc="calculating distances:", ncols=80, disable=not verbose
+    ):
+        mask = (
+            pairwise(
+                [gt["points"] for gt in gts[token]["lane_centerline"]],
+                [pred["points"] for pred in preds[token]["lane_centerline"]],
+                chamfer_distance,
+                relax=True,
+            )
+            < THRESHOLDS_FRECHET[-1]
+        )
 
-        mask = pairwise(
-            [gt['points'] for gt in gts[token]['lane_centerline']],
-            [pred['points'] for pred in preds[token]['lane_centerline']],
-            chamfer_distance,
-            relax=True,
-        ) < THRESHOLDS_FRECHET[-1]
-
-        distance_matrixs['frechet'][token] = pairwise(
-            [gt['points'] for gt in gts[token]['lane_centerline']],
-            [pred['points'] for pred in preds[token]['lane_centerline']],
+        distance_matrixs["frechet"][token] = pairwise(
+            [gt["points"] for gt in gts[token]["lane_centerline"]],
+            [pred["points"] for pred in preds[token]["lane_centerline"]],
             frechet_distance,
             mask=mask,
             relax=True,
         )
 
-        distance_matrixs['iou'][token] = pairwise(
-            [gt['points'] for gt in gts[token]['traffic_element']],
-            [pred['points'] for pred in preds[token]['traffic_element']],
+        distance_matrixs["iou"][token] = pairwise(
+            [gt["points"] for gt in gts[token]["traffic_element"]],
+            [pred["points"] for pred in preds[token]["traffic_element"]],
             iou_distance,
         )
 
@@ -601,61 +695,70 @@ def evaluate(ground_truth, predictions, verbose=True):
     """
 
     metrics = {
-        'OpenLane-V2 Score': {},
-        'F-Score for 3D Lane': {},
+        "OpenLane-V2 Score": {},
+        "F-Score for 3D Lane": {},
     }
 
     """
         OpenLane-V2 Score
     """
 
-    metrics['OpenLane-V2 Score']['DET_l'] = _mAP_over_threshold(
-        gts=gts, 
-        preds=preds, 
-        distance_matrixs=distance_matrixs['frechet'], 
+    metrics["OpenLane-V2 Score"]["DET_l"] = _mAP_over_threshold(
+        gts=gts,
+        preds=preds,
+        distance_matrixs=distance_matrixs["frechet"],
         distance_thresholds=THRESHOLDS_FRECHET,
-        object_type='lane_centerline',
+        object_type="lane_centerline",
         filter=lambda _: True,
-        inject=True, # save tp for eval on graph
+        inject=True,  # save tp for eval on graph
     ).mean()
 
-    metrics['OpenLane-V2 Score']['DET_t'] = np.hstack([_mAP_over_threshold(
-        gts=gts, 
-        preds=preds, 
-        distance_matrixs=distance_matrixs['iou'], 
-        distance_thresholds=THRESHOLDS_IOU, 
-        object_type='traffic_element',
-        filter=lambda x: x['attribute'] == idx,
-        inject=False,
-    ) for idx in TRAFFIC_ELEMENT_ATTRIBUTE.values()]).mean()
+    metrics["OpenLane-V2 Score"]["DET_t"] = np.hstack(
+        [
+            _mAP_over_threshold(
+                gts=gts,
+                preds=preds,
+                distance_matrixs=distance_matrixs["iou"],
+                distance_thresholds=THRESHOLDS_IOU,
+                object_type="traffic_element",
+                filter=lambda x: x["attribute"] == idx,
+                inject=False,
+            )
+            for idx in TRAFFIC_ELEMENT_ATTRIBUTE.values()
+        ]
+    ).mean()
 
     _mAP_over_threshold(
-        gts=gts, 
-        preds=preds, 
-        distance_matrixs=distance_matrixs['iou'], 
-        distance_thresholds=THRESHOLDS_IOU, 
-        object_type='traffic_element',
+        gts=gts,
+        preds=preds,
+        distance_matrixs=distance_matrixs["iou"],
+        distance_thresholds=THRESHOLDS_IOU,
+        object_type="traffic_element",
         filter=lambda _: True,
-        inject=True, # save tp for eval on graph
+        inject=True,  # save tp for eval on graph
     )
-    metrics['OpenLane-V2 Score']['TOP_ll'] = _mAP_topology_lclc(gts, preds, THRESHOLDS_FRECHET)
-    metrics['OpenLane-V2 Score']['TOP_lt'] = _mAP_topology_lcte(
+    metrics["OpenLane-V2 Score"]["TOP_ll"] = _mAP_topology_lclc(
+        gts, preds, THRESHOLDS_FRECHET
+    )
+    metrics["OpenLane-V2 Score"]["TOP_lt"] = _mAP_topology_lcte(
         gts,
         preds,
-        {'lane_centerline': THRESHOLDS_FRECHET, 'traffic_element': THRESHOLDS_IOU},
+        {"lane_centerline": THRESHOLDS_FRECHET, "traffic_element": THRESHOLDS_IOU},
     )
 
-    metrics['OpenLane-V2 Score']['score'] = np.asarray([
-        metrics['OpenLane-V2 Score']['DET_l'],
-        metrics['OpenLane-V2 Score']['DET_t'],
-        np.sqrt(metrics['OpenLane-V2 Score']['TOP_ll']),
-        np.sqrt(metrics['OpenLane-V2 Score']['TOP_lt']),
-    ]).mean()
+    metrics["OpenLane-V2 Score"]["score"] = np.asarray(
+        [
+            metrics["OpenLane-V2 Score"]["DET_l"],
+            metrics["OpenLane-V2 Score"]["DET_t"],
+            np.sqrt(metrics["OpenLane-V2 Score"]["TOP_ll"]),
+            np.sqrt(metrics["OpenLane-V2 Score"]["TOP_lt"]),
+        ]
+    ).mean()
 
     """
         F-Score
     """
 
-    metrics['F-Score for 3D Lane']['score'] = f1.bench_one_submit(gts=gts, preds=preds)
+    metrics["F-Score for 3D Lane"]["score"] = f1.bench_one_submit(gts=gts, preds=preds)
 
     return metrics

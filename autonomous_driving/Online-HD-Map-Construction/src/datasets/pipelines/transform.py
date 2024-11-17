@@ -28,16 +28,17 @@ class Normalize3D(object):
             dict: Normalized results, 'img_norm_cfg' key is added into
                 result dict.
         """
-        for key in results.get('img_fields', ['img']):
-            results[key] = [mmcv.imnormalize(
-                img, self.mean, self.std, self.to_rgb) for img in results[key]]
-        results['img_norm_cfg'] = dict(
-            mean=self.mean, std=self.std, to_rgb=self.to_rgb)
+        for key in results.get("img_fields", ["img"]):
+            results[key] = [
+                mmcv.imnormalize(img, self.mean, self.std, self.to_rgb)
+                for img in results[key]
+            ]
+        results["img_norm_cfg"] = dict(mean=self.mean, std=self.std, to_rgb=self.to_rgb)
         return results
 
     def __repr__(self):
         repr_str = self.__class__.__name__
-        repr_str += f'(mean={self.mean}, std={self.std}, to_rgb={self.to_rgb})'
+        repr_str += f"(mean={self.mean}, std={self.std}, to_rgb={self.to_rgb})"
         return repr_str
 
 
@@ -56,7 +57,9 @@ class PadMultiViewImages(object):
         change_intrinsics (bool): whether to update intrinsics.
     """
 
-    def __init__(self, size=None, size_divisor=None, pad_val=0, change_intrinsics=False):
+    def __init__(
+        self, size=None, size_divisor=None, pad_val=0, change_intrinsics=False
+    ):
         self.size = size
         self.size_divisor = size_divisor
         self.pad_val = pad_val
@@ -68,43 +71,50 @@ class PadMultiViewImages(object):
 
     def _pad_img(self, results):
         """Pad images according to ``self.size``."""
-        original_shape = [img.shape for img in results['img']]
+        original_shape = [img.shape for img in results["img"]]
 
-        for key in results.get('img_fields', ['img']):
+        for key in results.get("img_fields", ["img"]):
             if self.size is not None:
-                padded_img = [mmcv.impad(
-                    img, shape=self.size, pad_val=self.pad_val) for img in results[key]]
+                padded_img = [
+                    mmcv.impad(img, shape=self.size, pad_val=self.pad_val)
+                    for img in results[key]
+                ]
             elif self.size_divisor is not None:
-                padded_img = [mmcv.impad_to_multiple(
-                    img, self.size_divisor, pad_val=self.pad_val) for img in results[key]]
+                padded_img = [
+                    mmcv.impad_to_multiple(img, self.size_divisor, pad_val=self.pad_val)
+                    for img in results[key]
+                ]
             results[key] = padded_img
 
         if self.change_intrinsics:
             post_intrinsics, post_ego2imgs = [], []
-            for img, oshape, cam_intrinsic, ego2img in zip(results['img'], \
-                    original_shape, results['cam_intrinsics'], results['ego2img']):
+            for img, oshape, cam_intrinsic, ego2img in zip(
+                results["img"],
+                original_shape,
+                results["cam_intrinsics"],
+                results["ego2img"],
+            ):
                 scaleW = img.shape[1] / oshape[1]
                 scaleH = img.shape[0] / oshape[0]
 
-                rot_resize_matrix = np.array([ 
-                                        [scaleW, 0,      0,    0],
-                                        [0,      scaleH, 0,    0],
-                                        [0,      0,      1,    0],
-                                        [0,      0,      0,    1]])
+                rot_resize_matrix = np.array(
+                    [[scaleW, 0, 0, 0], [0, scaleH, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+                )
                 post_intrinsic = rot_resize_matrix[:3, :3] @ cam_intrinsic
                 post_ego2img = rot_resize_matrix @ ego2img
                 post_intrinsics.append(post_intrinsic)
                 post_ego2imgs.append(post_ego2img)
-        
-            results.update({
-                'cam_intrinsics': post_intrinsics,
-                'ego2img': post_ego2imgs,
-            })
 
+            results.update(
+                {
+                    "cam_intrinsics": post_intrinsics,
+                    "ego2img": post_ego2imgs,
+                }
+            )
 
-        results['img_shape'] = [img.shape for img in padded_img]
-        results['img_fixed_size'] = self.size
-        results['img_size_divisor'] = self.size_divisor
+        results["img_shape"] = [img.shape for img in padded_img]
+        results["img_fixed_size"] = self.size
+        results["img_size_divisor"] = self.size_divisor
 
     def __call__(self, results):
         """Call function to pad images, masks, semantic segmentation maps.
@@ -118,10 +128,10 @@ class PadMultiViewImages(object):
 
     def __repr__(self):
         repr_str = self.__class__.__name__
-        repr_str += f'(size={self.size}, '
-        repr_str += f'size_divisor={self.size_divisor}, '
-        repr_str += f'pad_val={self.pad_val})'
-        repr_str += f'change_intrinsics={self.change_intrinsics})'
+        repr_str += f"(size={self.size}, "
+        repr_str += f"size_divisor={self.size_divisor}, "
+        repr_str += f"pad_val={self.pad_val})"
+        repr_str += f"change_intrinsics={self.change_intrinsics})"
 
         return repr_str
 
@@ -135,45 +145,48 @@ class ResizeMultiViewImages(object):
         size (tuple, optional): resize target size, (h, w).
         change_intrinsics (bool): whether to update intrinsics.
     """
+
     def __init__(self, size, change_intrinsics=True):
         self.size = size
         self.change_intrinsics = change_intrinsics
 
-    def __call__(self, results:dict):
-
+    def __call__(self, results: dict):
         new_imgs, post_intrinsics, post_ego2imgs = [], [], []
 
-        for img,  cam_intrinsic, ego2img in zip(results['img'], \
-                results['cam_intrinsics'], results['ego2img']):
-            tmp, scaleW, scaleH = mmcv.imresize(img,
-                                                # NOTE: mmcv.imresize expect (w, h) shape
-                                                (self.size[1], self.size[0]),
-                                                return_scale=True)
+        for img, cam_intrinsic, ego2img in zip(
+            results["img"], results["cam_intrinsics"], results["ego2img"]
+        ):
+            tmp, scaleW, scaleH = mmcv.imresize(
+                img,
+                # NOTE: mmcv.imresize expect (w, h) shape
+                (self.size[1], self.size[0]),
+                return_scale=True,
+            )
             new_imgs.append(tmp)
 
-            rot_resize_matrix = np.array([
-                [scaleW, 0,      0,    0],
-                [0,      scaleH, 0,    0],
-                [0,      0,      1,    0],
-                [0,      0,      0,    1]])
+            rot_resize_matrix = np.array(
+                [[scaleW, 0, 0, 0], [0, scaleH, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+            )
             post_intrinsic = rot_resize_matrix[:3, :3] @ cam_intrinsic
             post_ego2img = rot_resize_matrix @ ego2img
             post_intrinsics.append(post_intrinsic)
             post_ego2imgs.append(post_ego2img)
 
-        results['img'] = new_imgs
-        results['img_shape'] = [img.shape for img in new_imgs]
+        results["img"] = new_imgs
+        results["img_shape"] = [img.shape for img in new_imgs]
         if self.change_intrinsics:
-            results.update({
-                'cam_intrinsics': post_intrinsics,
-                'ego2img': post_ego2imgs,
-            })
+            results.update(
+                {
+                    "cam_intrinsics": post_intrinsics,
+                    "ego2img": post_ego2imgs,
+                }
+            )
 
         return results
-    
+
     def __repr__(self):
         repr_str = self.__class__.__name__
-        repr_str += f'(size={self.size}, '
-        repr_str += f'change_intrinsics={self.change_intrinsics})'
+        repr_str += f"(size={self.size}, "
+        repr_str += f"change_intrinsics={self.change_intrinsics})"
 
         return repr_str

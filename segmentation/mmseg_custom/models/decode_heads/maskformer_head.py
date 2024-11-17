@@ -2,8 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from mmcv.cnn import Conv2d, build_plugin_layer, kaiming_init
-from mmcv.cnn.bricks.transformer import (build_positional_encoding,
-                                         build_transformer_layer_sequence)
+from mmcv.cnn.bricks.transformer import (
+    build_positional_encoding,
+    build_transformer_layer_sequence,
+)
 from mmcv.runner import force_fp32
 from mmseg.models.builder import HEADS, build_loss
 from mmseg.models.decode_heads.decode_head import BaseDecodeHead
@@ -49,56 +51,61 @@ class MaskFormerHead(BaseDecodeHead):
         init_cfg (dict or list[dict], optional): Initialization config dict.
             Defaults to None.
     """
-    def __init__(self,
-                 out_channels,
-                 num_queries=100,
-                 pixel_decoder=None,
-                 enforce_decoder_input_project=False,
-                 transformer_decoder=None,
-                 positional_encoding=None,
-                 loss_cls=dict(
-                     type='CrossEntropyLoss',
-                     bg_cls_weight=0.1,
-                     use_sigmoid=False,
-                     loss_weight=1.0,
-                     class_weight=1.0),
-                 loss_mask=dict(
-                     type='FocalLoss',
-                     use_sigmoid=True,
-                     gamma=2.0,
-                     alpha=0.25,
-                     loss_weight=20.0),
-                 loss_dice=dict(
-                     type='DiceLoss',
-                     use_sigmoid=True,
-                     activate=True,
-                     naive_dice=True,
-                     loss_weight=1.0),
-                 assigner=dict(
-                     type='MaskHungarianAssigner',
-                     cls_cost=dict(type='ClassificationCost', weight=1.),
-                     dice_cost=dict(type='DiceCost', weight=1.0, pred_act=True,
-                                    eps=1.0),
-                     mask_cost=dict(type='MaskFocalLossCost', weight=20.0)),
-                 **kwargs):
-        super(MaskFormerHead, self).__init__(input_transform='multiple_select',
-                                             **kwargs)
+
+    def __init__(
+        self,
+        out_channels,
+        num_queries=100,
+        pixel_decoder=None,
+        enforce_decoder_input_project=False,
+        transformer_decoder=None,
+        positional_encoding=None,
+        loss_cls=dict(
+            type="CrossEntropyLoss",
+            bg_cls_weight=0.1,
+            use_sigmoid=False,
+            loss_weight=1.0,
+            class_weight=1.0,
+        ),
+        loss_mask=dict(
+            type="FocalLoss", use_sigmoid=True, gamma=2.0, alpha=0.25, loss_weight=20.0
+        ),
+        loss_dice=dict(
+            type="DiceLoss",
+            use_sigmoid=True,
+            activate=True,
+            naive_dice=True,
+            loss_weight=1.0,
+        ),
+        assigner=dict(
+            type="MaskHungarianAssigner",
+            cls_cost=dict(type="ClassificationCost", weight=1.0),
+            dice_cost=dict(type="DiceCost", weight=1.0, pred_act=True, eps=1.0),
+            mask_cost=dict(type="MaskFocalLossCost", weight=20.0),
+        ),
+        **kwargs,
+    ):
+        super(MaskFormerHead, self).__init__(
+            input_transform="multiple_select", **kwargs
+        )
         self.num_queries = num_queries
 
         pixel_decoder.update(
             in_channels=self.in_channels,
             feat_channels=self.channels,
-            out_channels=out_channels)
+            out_channels=out_channels,
+        )
         self.pixel_decoder = build_plugin_layer(pixel_decoder)[1]
-        self.transformer_decoder = build_transformer_layer_sequence(
-            transformer_decoder)
+        self.transformer_decoder = build_transformer_layer_sequence(transformer_decoder)
         self.decoder_embed_dims = self.transformer_decoder.embed_dims
-        pixel_decoder_type = pixel_decoder.get('type')
-        if pixel_decoder_type == 'PixelDecoder' and (
-                self.decoder_embed_dims != self.in_channels[-1]
-                or enforce_decoder_input_project):
+        pixel_decoder_type = pixel_decoder.get("type")
+        if pixel_decoder_type == "PixelDecoder" and (
+            self.decoder_embed_dims != self.in_channels[-1]
+            or enforce_decoder_input_project
+        ):
             self.decoder_input_proj = Conv2d(
-                self.in_channels[-1], self.decoder_embed_dims, kernel_size=1)
+                self.in_channels[-1], self.decoder_embed_dims, kernel_size=1
+            )
         else:
             self.decoder_input_proj = nn.Identity()
         self.decoder_pe = build_positional_encoding(positional_encoding)
@@ -106,41 +113,49 @@ class MaskFormerHead(BaseDecodeHead):
 
         self.cls_embed = nn.Linear(self.channels, self.num_classes + 1)
         self.mask_embed = nn.Sequential(
-            nn.Linear(self.channels, self.channels), nn.ReLU(inplace=True),
-            nn.Linear(self.channels, self.channels), nn.ReLU(inplace=True),
-            nn.Linear(self.channels, out_channels))
+            nn.Linear(self.channels, self.channels),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.channels, self.channels),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.channels, out_channels),
+        )
 
         self.assigner = build_assigner(assigner)
 
         self.bg_cls_weight = 0
-        class_weight = loss_cls.get('class_weight', None)
+        class_weight = loss_cls.get("class_weight", None)
         if class_weight is not None and (self.__class__ is MaskFormerHead):
-            assert isinstance(class_weight, float), 'Expected ' \
-                                                    'class_weight to have type float. Found ' \
-                                                    f'{type(class_weight)}.'
+            assert isinstance(class_weight, float), (
+                "Expected "
+                "class_weight to have type float. Found "
+                f"{type(class_weight)}."
+            )
             # NOTE following the official MaskFormerHead repo, bg_cls_weight
             # means relative classification weight of the VOID class.
-            bg_cls_weight = loss_cls.get('bg_cls_weight', class_weight)
-            assert isinstance(bg_cls_weight, float), 'Expected ' \
-                                                     'bg_cls_weight to have type float. Found ' \
-                                                     f'{type(bg_cls_weight)}.'
+            bg_cls_weight = loss_cls.get("bg_cls_weight", class_weight)
+            assert isinstance(bg_cls_weight, float), (
+                "Expected "
+                "bg_cls_weight to have type float. Found "
+                f"{type(bg_cls_weight)}."
+            )
             class_weight = (self.num_classes + 1) * [class_weight]
             # set VOID class as the last indice
             class_weight[self.num_classes] = bg_cls_weight
-            loss_cls.update({'class_weight': class_weight})
-            if 'bg_cls_weight' in loss_cls:
-                loss_cls.pop('bg_cls_weight')
+            loss_cls.update({"class_weight": class_weight})
+            if "bg_cls_weight" in loss_cls:
+                loss_cls.pop("bg_cls_weight")
             self.bg_cls_weight = bg_cls_weight
 
-        assert loss_cls['loss_weight'] == assigner['cls_cost']['weight'], \
-            'The classification weight for loss and matcher should be' \
-            'exactly the same.'
-        assert loss_dice['loss_weight'] == assigner['dice_cost']['weight'], \
-            f'The dice weight for loss and matcher' \
-            f'should be exactly the same.'
-        assert loss_mask['loss_weight'] == assigner['mask_cost']['weight'], \
-            'The focal weight for loss and matcher should be' \
-            'exactly the same.'
+        assert loss_cls["loss_weight"] == assigner["cls_cost"]["weight"], (
+            "The classification weight for loss and matcher should be"
+            "exactly the same."
+        )
+        assert loss_dice["loss_weight"] == assigner["dice_cost"]["weight"], (
+            f"The dice weight for loss and matcher" f"should be exactly the same."
+        )
+        assert loss_mask["loss_weight"] == assigner["mask_cost"]["weight"], (
+            "The focal weight for loss and matcher should be" "exactly the same."
+        )
         self.loss_cls = build_loss(loss_cls)
         self.loss_mask = build_loss(loss_mask)
         self.loss_dice = build_loss(loss_dice)
@@ -150,8 +165,9 @@ class MaskFormerHead(BaseDecodeHead):
     def init_weights(self):
         kaiming_init(self.decoder_input_proj, a=1)
 
-    def get_targets(self, cls_scores_list, mask_preds_list, gt_labels_list,
-                    gt_masks_list, img_metas):
+    def get_targets(
+        self, cls_scores_list, mask_preds_list, gt_labels_list, gt_masks_list, img_metas
+    ):
         """Compute classification and mask targets for all images for a decoder
         layer.
 
@@ -184,19 +200,34 @@ class MaskFormerHead(BaseDecodeHead):
                 - num_total_neg (int): Number of negative samples in all
                     images.
         """
-        (labels_list, label_weights_list, mask_targets_list, mask_weights_list,
-         pos_inds_list,
-         neg_inds_list) = multi_apply(self._get_target_single, cls_scores_list,
-                                      mask_preds_list, gt_labels_list,
-                                      gt_masks_list, img_metas)
+        (
+            labels_list,
+            label_weights_list,
+            mask_targets_list,
+            mask_weights_list,
+            pos_inds_list,
+            neg_inds_list,
+        ) = multi_apply(
+            self._get_target_single,
+            cls_scores_list,
+            mask_preds_list,
+            gt_labels_list,
+            gt_masks_list,
+            img_metas,
+        )
 
         num_total_pos = sum((inds.numel() for inds in pos_inds_list))
         num_total_neg = sum((inds.numel() for inds in neg_inds_list))
-        return (labels_list, label_weights_list, mask_targets_list,
-                mask_weights_list, num_total_pos, num_total_neg)
+        return (
+            labels_list,
+            label_weights_list,
+            mask_targets_list,
+            mask_weights_list,
+            num_total_pos,
+            num_total_neg,
+        )
 
-    def _get_target_single(self, cls_score, mask_pred, gt_labels, gt_masks,
-                           img_metas):
+    def _get_target_single(self, cls_score, mask_pred, gt_labels, gt_masks, img_metas):
         """Compute classification and mask targets for one image.
 
         Args:
@@ -226,38 +257,47 @@ class MaskFormerHead(BaseDecodeHead):
                 - neg_inds (Tensor): Sampled negative indices for each image.
         """
         target_shape = mask_pred.shape[-2:]
-        gt_masks_downsampled = F.interpolate(
-            gt_masks.unsqueeze(1).float(), target_shape,
-            mode='nearest').squeeze(1).long()
+        gt_masks_downsampled = (
+            F.interpolate(gt_masks.unsqueeze(1).float(), target_shape, mode="nearest")
+            .squeeze(1)
+            .long()
+        )
         # assign and sample
-        assign_result = self.assigner.assign(cls_score, mask_pred, gt_labels,
-                                             gt_masks_downsampled, img_metas)
+        assign_result = self.assigner.assign(
+            cls_score, mask_pred, gt_labels, gt_masks_downsampled, img_metas
+        )
         # pos_ind: range from 1 to (self.num_classes)
         # which represents the positive index
-        pos_inds = torch.nonzero(assign_result.gt_inds > 0,
-                                 as_tuple=False).squeeze(-1).unique()
-        neg_inds = torch.nonzero(assign_result.gt_inds == 0,
-                                 as_tuple=False).squeeze(-1).unique()
+        pos_inds = (
+            torch.nonzero(assign_result.gt_inds > 0, as_tuple=False)
+            .squeeze(-1)
+            .unique()
+        )
+        neg_inds = (
+            torch.nonzero(assign_result.gt_inds == 0, as_tuple=False)
+            .squeeze(-1)
+            .unique()
+        )
         pos_assigned_gt_inds = assign_result.gt_inds[pos_inds] - 1
 
         # label target
-        labels = gt_labels.new_full((self.num_queries, ),
-                                    self.num_classes,
-                                    dtype=torch.long)
+        labels = gt_labels.new_full(
+            (self.num_queries,), self.num_classes, dtype=torch.long
+        )
         labels[pos_inds] = gt_labels[pos_assigned_gt_inds]
         label_weights = gt_labels.new_ones(self.num_queries)
 
         # mask target
         mask_targets = gt_masks[pos_assigned_gt_inds, :]
-        mask_weights = mask_pred.new_zeros((self.num_queries, ))
+        mask_weights = mask_pred.new_zeros((self.num_queries,))
         mask_weights[pos_inds] = 1.0
 
-        return (labels, label_weights, mask_targets, mask_weights, pos_inds,
-                neg_inds)
+        return (labels, label_weights, mask_targets, mask_weights, pos_inds, neg_inds)
 
-    @force_fp32(apply_to=('all_cls_scores', 'all_mask_preds'))
-    def loss(self, all_cls_scores, all_mask_preds, gt_labels_list,
-             gt_masks_list, img_metas):
+    @force_fp32(apply_to=("all_cls_scores", "all_mask_preds"))
+    def loss(
+        self, all_cls_scores, all_mask_preds, gt_labels_list, gt_masks_list, img_metas
+    ):
         """Loss function.
 
         Args:
@@ -281,26 +321,33 @@ class MaskFormerHead(BaseDecodeHead):
         all_gt_masks_list = [gt_masks_list for _ in range(num_dec_layers)]
         img_metas_list = [img_metas for _ in range(num_dec_layers)]
         losses_cls, losses_mask, losses_dice = multi_apply(
-            self.loss_single, all_cls_scores, all_mask_preds,
-            all_gt_labels_list, all_gt_masks_list, img_metas_list)
+            self.loss_single,
+            all_cls_scores,
+            all_mask_preds,
+            all_gt_labels_list,
+            all_gt_masks_list,
+            img_metas_list,
+        )
 
         loss_dict = dict()
         # loss from the last decoder layer
-        loss_dict['loss_cls'] = losses_cls[-1]
-        loss_dict['loss_mask'] = losses_mask[-1]
-        loss_dict['loss_dice'] = losses_dice[-1]
+        loss_dict["loss_cls"] = losses_cls[-1]
+        loss_dict["loss_mask"] = losses_mask[-1]
+        loss_dict["loss_dice"] = losses_dice[-1]
         # loss from other decoder layers
         num_dec_layer = 0
         for loss_cls_i, loss_mask_i, loss_dice_i in zip(
-                losses_cls[:-1], losses_mask[:-1], losses_dice[:-1]):
-            loss_dict[f'd{num_dec_layer}.loss_cls'] = loss_cls_i
-            loss_dict[f'd{num_dec_layer}.loss_mask'] = loss_mask_i
-            loss_dict[f'd{num_dec_layer}.loss_dice'] = loss_dice_i
+            losses_cls[:-1], losses_mask[:-1], losses_dice[:-1]
+        ):
+            loss_dict[f"d{num_dec_layer}.loss_cls"] = loss_cls_i
+            loss_dict[f"d{num_dec_layer}.loss_mask"] = loss_mask_i
+            loss_dict[f"d{num_dec_layer}.loss_dice"] = loss_dice_i
             num_dec_layer += 1
         return loss_dict
 
-    def loss_single(self, cls_scores, mask_preds, gt_labels_list,
-                    gt_masks_list, img_metas):
+    def loss_single(
+        self, cls_scores, mask_preds, gt_labels_list, gt_masks_list, img_metas
+    ):
         """Loss function for outputs from a single decoder layer.
 
         Args:
@@ -324,11 +371,16 @@ class MaskFormerHead(BaseDecodeHead):
         cls_scores_list = [cls_scores[i] for i in range(num_imgs)]
         mask_preds_list = [mask_preds[i] for i in range(num_imgs)]
 
-        (labels_list, label_weights_list, mask_targets_list, mask_weights_list,
-         num_total_pos,
-         num_total_neg) = self.get_targets(cls_scores_list, mask_preds_list,
-                                           gt_labels_list, gt_masks_list,
-                                           img_metas)
+        (
+            labels_list,
+            label_weights_list,
+            mask_targets_list,
+            mask_weights_list,
+            num_total_pos,
+            num_total_neg,
+        ) = self.get_targets(
+            cls_scores_list, mask_preds_list, gt_labels_list, gt_masks_list, img_metas
+        )
         # shape [batch_size, num_queries]
         labels = torch.stack(labels_list, dim=0)
         # shape [batch_size, num_queries]
@@ -350,10 +402,8 @@ class MaskFormerHead(BaseDecodeHead):
         class_weight[-1] = self.bg_cls_weight
 
         loss_cls = self.loss_cls(
-            cls_scores,
-            labels,
-            label_weights,
-            avg_factor=class_weight[labels].sum())
+            cls_scores, labels, label_weights, avg_factor=class_weight[labels].sum()
+        )
 
         num_total_masks = reduce_mean(cls_scores.new_tensor([num_total_pos]))
         num_total_masks = max(num_total_masks, 1)
@@ -371,14 +421,11 @@ class MaskFormerHead(BaseDecodeHead):
         # upsample to shape of target
         # shape [num_gts, h, w]
         mask_preds = F.interpolate(
-            mask_preds.unsqueeze(1),
-            target_shape,
-            mode='bilinear',
-            align_corners=False).squeeze(1)
+            mask_preds.unsqueeze(1), target_shape, mode="bilinear", align_corners=False
+        ).squeeze(1)
 
         # dice loss
-        loss_dice = self.loss_dice(
-            mask_preds, mask_targets, avg_factor=num_total_masks)
+        loss_dice = self.loss_dice(mask_preds, mask_targets, avg_factor=num_total_masks)
 
         # mask loss
         # FocalLoss support input of shape [n, num_class]
@@ -391,7 +438,8 @@ class MaskFormerHead(BaseDecodeHead):
         print("mask_pred:", mask_preds.shape)
         print("mask_targets:", mask_targets.shape)
         loss_mask = self.loss_mask(
-            mask_preds, 1 - mask_targets, avg_factor=num_total_masks * h * w)
+            mask_preds, 1 - mask_targets, avg_factor=num_total_masks * h * w
+        )
 
         return loss_cls, loss_mask, loss_dice
 
@@ -413,17 +461,21 @@ class MaskFormerHead(BaseDecodeHead):
                 num_queries, h, w].
         """
         batch_size = len(img_metas)
-        input_img_h, input_img_w = img_metas[0]['pad_shape'][:-1]
+        input_img_h, input_img_w = img_metas[0]["pad_shape"][:-1]
         # input_img_h, input_img_w = img_metas[0]['batch_input_shape']
         padding_mask = feats[-1].new_ones(
-            (batch_size, input_img_h, input_img_w), dtype=torch.float32)
+            (batch_size, input_img_h, input_img_w), dtype=torch.float32
+        )
         for i in range(batch_size):
-            img_h, img_w, _ = img_metas[i]['img_shape']
+            img_h, img_w, _ = img_metas[i]["img_shape"]
             padding_mask[i, :img_h, :img_w] = 0
-        padding_mask = F.interpolate(
-            padding_mask.unsqueeze(1),
-            size=feats[-1].shape[-2:],
-            mode='nearest').to(torch.bool).squeeze(1)
+        padding_mask = (
+            F.interpolate(
+                padding_mask.unsqueeze(1), size=feats[-1].shape[-2:], mode="nearest"
+            )
+            .to(torch.bool)
+            .squeeze(1)
+        )
         # when backbone is swin, memory is output of last stage of swin.
         # when backbone is r50, memory is output of tranformer encoder.
         mask_features, memory = self.pixel_decoder(feats, img_metas)
@@ -446,7 +498,8 @@ class MaskFormerHead(BaseDecodeHead):
             value=memory,
             key_pos=pos_embed,
             query_pos=query_embed,
-            key_padding_mask=padding_mask)
+            key_padding_mask=padding_mask,
+        )
         # shape [num_decoder, batch_size, num_queries, embed_dims]
         out_dec = out_dec.transpose(1, 2)
 
@@ -455,17 +508,11 @@ class MaskFormerHead(BaseDecodeHead):
 
         # mask_preds
         mask_embed = self.mask_embed(out_dec)
-        all_mask_preds = torch.einsum('lbqc,bchw->lbqhw', mask_embed,
-                                      mask_features)
+        all_mask_preds = torch.einsum("lbqc,bchw->lbqhw", mask_embed, mask_features)
 
         return all_cls_scores, all_mask_preds
 
-    def forward_train(self,
-                      x,
-                      img_metas,
-                      gt_semantic_seg,
-                      gt_labels,
-                      gt_masks):
+    def forward_train(self, x, img_metas, gt_semantic_seg, gt_labels, gt_masks):
         """Forward function for training mode.
 
         Args:
@@ -489,8 +536,9 @@ class MaskFormerHead(BaseDecodeHead):
         all_cls_scores, all_mask_preds = self(x, img_metas)
 
         # loss
-        losses = self.loss(all_cls_scores, all_mask_preds, gt_labels, gt_masks,
-                           img_metas)
+        losses = self.loss(
+            all_cls_scores, all_mask_preds, gt_labels, gt_masks, img_metas
+        )
 
         return losses
 
@@ -510,10 +558,10 @@ class MaskFormerHead(BaseDecodeHead):
         """
         all_cls_scores, all_mask_preds = self(inputs, img_metas)
         cls_score, mask_pred = all_cls_scores[-1], all_mask_preds[-1]
-        ori_h, ori_w, _ = img_metas[0]['ori_shape']
+        ori_h, ori_w, _ = img_metas[0]["ori_shape"]
 
         # semantic inference
         cls_score = F.softmax(cls_score, dim=-1)[..., :-1]
         mask_pred = mask_pred.sigmoid()
-        seg_mask = torch.einsum('bqc,bqhw->bchw', cls_score, mask_pred)
+        seg_mask = torch.einsum("bqc,bqhw->bchw", cls_score, mask_pred)
         return seg_mask

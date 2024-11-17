@@ -22,15 +22,15 @@ class BaseMapHead(nn.Module, metaclass=ABCMeta):
         """
         if pretrained is not None:
             logger = get_root_logger()
-            print_log(f'load model from: {pretrained}', logger=logger)
+            print_log(f"load model from: {pretrained}", logger=logger)
 
-    @auto_fp16(apply_to=('img', ))
+    @auto_fp16(apply_to=("img",))
     def forward(self, *args, **kwargs):
         pass
-        
+
     @abstractmethod
     def loss(self, pred, gt):
-        '''
+        """
         Compute loss
         Output:
             dict(
@@ -40,13 +40,13 @@ class BaseMapHead(nn.Module, metaclass=ABCMeta):
                 )
                 num_samples: int
             )
-        '''
+        """
         return
-        
+
     @abstractmethod
     def post_process(self, pred):
-        '''
+        """
         convert model predictions to vectorized outputs
         the output format should be consistent with the evaluation function
-        '''
+        """
         return

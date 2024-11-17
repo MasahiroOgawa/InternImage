@@ -39,9 +39,7 @@ def has_file_allowed_extension(filename, extensions):
 
 
 def find_classes(dir):
-    classes = [
-        d for d in os.listdir(dir) if os.path.isdir(os.path.join(dir, d))
-    ]
+    classes = [d for d in os.listdir(dir) if os.path.isdir(os.path.join(dir, d))]
     classes.sort()
     class_to_idx = {classes[i]: i for i in range(len(classes))}
     return classes, class_to_idx
@@ -69,7 +67,7 @@ def make_dataset_with_ann(ann_file, img_prefix, extensions):
     with open(ann_file, "r") as f:
         contents = f.readlines()
         for line_str in contents:
-            path_contents = [c for c in line_str.split('\t')]
+            path_contents = [c for c in line_str.split("\t")]
             im_file_name = path_contents[0]
             class_index = int(path_contents[1])
             assert str.lower(os.path.splitext(im_file_name)[-1]) in extensions
@@ -100,29 +98,37 @@ class DatasetFolder(data.Dataset):
         samples (list): List of (sample path, class_index) tuples
     """
 
-    def __init__(self,
-                 root,
-                 loader,
-                 extensions,
-                 ann_file='',
-                 img_prefix='',
-                 transform=None,
-                 target_transform=None,
-                 cache_mode="no"):
+    def __init__(
+        self,
+        root,
+        loader,
+        extensions,
+        ann_file="",
+        img_prefix="",
+        transform=None,
+        target_transform=None,
+        cache_mode="no",
+    ):
         # image folder mode
-        if ann_file == '':
+        if ann_file == "":
             _, class_to_idx = find_classes(root)
             samples = make_dataset(root, class_to_idx, extensions)
         # zip mode
         else:
-            samples = make_dataset_with_ann(os.path.join(root, ann_file),
-                                            os.path.join(root, img_prefix),
-                                            extensions)
+            samples = make_dataset_with_ann(
+                os.path.join(root, ann_file), os.path.join(root, img_prefix), extensions
+            )
 
         if len(samples) == 0:
-            raise (RuntimeError("Found 0 files in subfolders of: " + root +
-                                "\n" + "Supported extensions are: " +
-                                ",".join(extensions)))
+            raise (
+                RuntimeError(
+                    "Found 0 files in subfolders of: "
+                    + root
+                    + "\n"
+                    + "Supported extensions are: "
+                    + ",".join(extensions)
+                )
+            )
 
         self.root = root
         self.loader = loader
@@ -151,7 +157,7 @@ class DatasetFolder(data.Dataset):
             if index % (n_sample // 10) == 0:
                 t = time.time() - start_time
                 print(
-                    f'global_rank {dist.get_rank()} cached {index}/{n_sample} takes {t:.2f}s per block'
+                    f"global_rank {dist.get_rank()} cached {index}/{n_sample} takes {t:.2f}s per block"
                 )
                 start_time = time.time()
             path, target = self.samples[index]
@@ -183,23 +189,22 @@ class DatasetFolder(data.Dataset):
         return len(self.samples)
 
     def __repr__(self):
-        fmt_str = 'Dataset ' + self.__class__.__name__ + '\n'
-        fmt_str += '    Number of datapoints: {}\n'.format(self.__len__())
-        fmt_str += '    Root Location: {}\n'.format(self.root)
-        tmp = '    Transforms (if any): '
-        fmt_str += '{0}{1}\n'.format(
-            tmp,
-            self.transform.__repr__().replace('\n', '\n' + ' ' * len(tmp)))
-        tmp = '    Target Transforms (if any): '
-        fmt_str += '{0}{1}'.format(
-            tmp,
-            self.target_transform.__repr__().replace('\n',
-                                                     '\n' + ' ' * len(tmp)))
+        fmt_str = "Dataset " + self.__class__.__name__ + "\n"
+        fmt_str += "    Number of datapoints: {}\n".format(self.__len__())
+        fmt_str += "    Root Location: {}\n".format(self.root)
+        tmp = "    Transforms (if any): "
+        fmt_str += "{0}{1}\n".format(
+            tmp, self.transform.__repr__().replace("\n", "\n" + " " * len(tmp))
+        )
+        tmp = "    Target Transforms (if any): "
+        fmt_str += "{0}{1}".format(
+            tmp, self.target_transform.__repr__().replace("\n", "\n" + " " * len(tmp))
+        )
 
         return fmt_str
 
 
-IMG_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif']
+IMG_EXTENSIONS = [".jpg", ".jpeg", ".png", ".ppm", ".bmp", ".pgm", ".tif"]
 
 
 def pil_loader(path):
@@ -210,15 +215,16 @@ def pil_loader(path):
         data = ZipReader.read(path)
         img = Image.open(io.BytesIO(data))
     else:
-        with open(path, 'rb') as f:
+        with open(path, "rb") as f:
             img = Image.open(f)
-            return img.convert('RGB')
+            return img.convert("RGB")
 
-    return img.convert('RGB')
+    return img.convert("RGB")
 
 
 def accimage_loader(path):
     import accimage
+
     try:
         return accimage.Image(path)
     except IOError:
@@ -228,7 +234,8 @@ def accimage_loader(path):
 
 def default_img_loader(path):
     from torchvision import get_image_backend
-    if get_image_backend() == 'accimage':
+
+    if get_image_backend() == "accimage":
         return accimage_loader(path)
     else:
         return pil_loader(path)
@@ -253,23 +260,26 @@ class CachedImageFolder(DatasetFolder):
         imgs (list): List of (image path, class_index) tuples
     """
 
-    def __init__(self,
-                 root,
-                 ann_file='',
-                 img_prefix='',
-                 transform=None,
-                 target_transform=None,
-                 loader=default_img_loader,
-                 cache_mode="no"):
-        super(CachedImageFolder,
-              self).__init__(root,
-                             loader,
-                             IMG_EXTENSIONS,
-                             ann_file=ann_file,
-                             img_prefix=img_prefix,
-                             transform=transform,
-                             target_transform=target_transform,
-                             cache_mode=cache_mode)
+    def __init__(
+        self,
+        root,
+        ann_file="",
+        img_prefix="",
+        transform=None,
+        target_transform=None,
+        loader=default_img_loader,
+        cache_mode="no",
+    ):
+        super(CachedImageFolder, self).__init__(
+            root,
+            loader,
+            IMG_EXTENSIONS,
+            ann_file=ann_file,
+            img_prefix=img_prefix,
+            transform=transform,
+            target_transform=target_transform,
+            cache_mode=cache_mode,
+        )
         self.imgs = self.samples
 
     def __getitem__(self, index):
@@ -292,25 +302,28 @@ class CachedImageFolder(DatasetFolder):
 
 
 class ImageCephDataset(data.Dataset):
-
-    def __init__(self,
-                 root,
-                 split,
-                 parser=None,
-                 transform=None,
-                 target_transform=None,
-                 on_memory=False):
-        if '22k' in root:
+    def __init__(
+        self,
+        root,
+        split,
+        parser=None,
+        transform=None,
+        target_transform=None,
+        on_memory=False,
+    ):
+        if "22k" in root:
             # Imagenet 22k
-            annotation_root = 'meta_data/'
+            annotation_root = "meta_data/"
         else:
             # Imagenet
-            annotation_root = 'meta_data/'
+            annotation_root = "meta_data/"
         if parser is None or isinstance(parser, str):
-            parser = ParserCephImage(root=root,
-                                     split=split,
-                                     annotation_root=annotation_root,
-                                     on_memory=on_memory)
+            parser = ParserCephImage(
+                root=root,
+                split=split,
+                annotation_root=annotation_root,
+                on_memory=on_memory,
+            )
         self.parser = parser
         self.transform = transform
         self.target_transform = target_transform
@@ -338,7 +351,6 @@ class ImageCephDataset(data.Dataset):
 
 
 class Parser:
-
     def __init__(self):
         pass
 
@@ -357,30 +369,23 @@ class Parser:
 
 
 class ParserCephImage(Parser):
-
-    def __init__(self,
-                 root,
-                 split,
-                 annotation_root,
-                 on_memory=False,
-                 **kwargs):
+    def __init__(self, root, split, annotation_root, on_memory=False, **kwargs):
         super().__init__()
 
         self.file_client = None
         self.kwargs = kwargs
 
         self.root = root  # dataset:s3://imagenet22k
-        if '22k' in root:
-            self.io_backend = 'petrel'
-            with open(osp.join(annotation_root, '22k_class_to_idx.json'),
-                      'r') as f:
+        if "22k" in root:
+            self.io_backend = "petrel"
+            with open(osp.join(annotation_root, "22k_class_to_idx.json"), "r") as f:
                 self.class_to_idx = json.loads(f.read())
-            with open(osp.join(annotation_root, '22k_label.txt'), 'r') as f:
+            with open(osp.join(annotation_root, "22k_label.txt"), "r") as f:
                 self.samples = f.read().splitlines()
         else:
-            self.io_backend = 'disk'
+            self.io_backend = "disk"
             self.class_to_idx = None
-            with open(osp.join(annotation_root, f'{split}.txt'), 'r') as f:
+            with open(osp.join(annotation_root, f"{split}.txt"), "r") as f:
                 self.samples = f.read().splitlines()
         local_rank = None
         local_size = None
@@ -389,30 +394,32 @@ class ParserCephImage(Parser):
         if on_memory:
             self.holder = {}
             if local_rank is None:
-                local_rank = int(os.environ.get('LOCAL_RANK', 0))
+                local_rank = int(os.environ.get("LOCAL_RANK", 0))
             if local_size is None:
-                local_size = int(os.environ.get('LOCAL_SIZE', 1))
+                local_size = int(os.environ.get("LOCAL_SIZE", 1))
             self.local_rank = local_rank
             self.local_size = local_size
             self.rank = int(os.environ["RANK"])
-            self.world_size = int(os.environ['WORLD_SIZE'])
-            self.num_replicas = int(os.environ['WORLD_SIZE'])
+            self.world_size = int(os.environ["WORLD_SIZE"])
+            self.num_replicas = int(os.environ["WORLD_SIZE"])
             self.num_parts = local_size
             self.num_samples = int(
-                math.ceil(len(self.samples) * 1.0 / self.num_replicas))
+                math.ceil(len(self.samples) * 1.0 / self.num_replicas)
+            )
             self.total_size = self.num_samples * self.num_replicas
-            self.total_size_parts = self.num_samples * self.num_replicas // self.num_parts
+            self.total_size_parts = (
+                self.num_samples * self.num_replicas // self.num_parts
+            )
             self.load_onto_memory_v2()
 
     def load_onto_memory(self):
-        print("Loading images onto memory...", self.local_rank,
-              self.local_size)
+        print("Loading images onto memory...", self.local_rank, self.local_size)
         if self.file_client is None:
             self.file_client = FileClient(self.io_backend, **self.kwargs)
         for index in trange(len(self.samples)):
             if index % self.local_size != self.local_rank:
                 continue
-            path, _ = self.samples[index].split(' ')
+            path, _ = self.samples[index].split(" ")
             path = osp.join(self.root, path)
             img_bytes = self.file_client.get(path)
             self.holder[path] = img_bytes
@@ -427,12 +434,14 @@ class ParserCephImage(Parser):
         # indices = range(len(self.samples))
         indices = [i for i in indices if i % self.num_parts == self.local_rank]
         # add extra samples to make it evenly divisible
-        indices += indices[:(self.total_size_parts - len(indices))]
+        indices += indices[: (self.total_size_parts - len(indices))]
         assert len(indices) == self.total_size_parts
 
         # subsample
-        indices = indices[self.rank // self.num_parts:self.
-                          total_size_parts:self.num_replicas // self.num_parts]
+        indices = indices[
+            self.rank // self.num_parts : self.total_size_parts : self.num_replicas
+            // self.num_parts
+        ]
         assert len(indices) == self.num_samples
 
         if self.file_client is None:
@@ -440,7 +449,7 @@ class ParserCephImage(Parser):
         for index in tqdm(indices):
             if index % self.local_size != self.local_rank:
                 continue
-            path, _ = self.samples[index].split(' ')
+            path, _ = self.samples[index].split(" ")
             path = osp.join(self.root, path)
             img_bytes = self.file_client.get(path)
 
@@ -452,7 +461,7 @@ class ParserCephImage(Parser):
         if self.file_client is None:
             self.file_client = FileClient(self.io_backend, **self.kwargs)
 
-        filepath, target = self.samples[index].split(' ')
+        filepath, target = self.samples[index].split(" ")
         filepath = osp.join(self.root, filepath)
 
         try:
@@ -464,7 +473,8 @@ class ParserCephImage(Parser):
             img = mmcv.imfrombytes(img_bytes)[:, :, ::-1]
         except Exception as e:
             _logger.warning(
-                f'Skipped sample (index {index}, file {filepath}). {str(e)}')
+                f"Skipped sample (index {index}, file {filepath}). {str(e)}"
+            )
             self._consecutive_errors += 1
             if self._consecutive_errors < _ERROR_RETRY:
                 return self.__getitem__((index + 1) % len(self))
@@ -479,7 +489,7 @@ class ParserCephImage(Parser):
             else:
                 target = int(target)
         except:
-            print('aaaaaaaaaaaa', filepath, target)
+            print("aaaaaaaaaaaa", filepath, target)
             exit()
 
         return img, target
@@ -488,7 +498,7 @@ class ParserCephImage(Parser):
         return len(self.samples)
 
     def _filename(self, index, basename=False, absolute=False):
-        filename, _ = self.samples[index].split(' ')
+        filename, _ = self.samples[index].split(" ")
         filename = osp.join(self.root, filename)
 
         return filename
@@ -498,10 +508,9 @@ def get_temporal_info(date, miss_hour=False):
     try:
         if date:
             if miss_hour:
-                pattern = re.compile(r'(\d*)-(\d*)-(\d*)', re.I)
+                pattern = re.compile(r"(\d*)-(\d*)-(\d*)", re.I)
             else:
-                pattern = re.compile(r'(\d*)-(\d*)-(\d*) (\d*):(\d*):(\d*)',
-                                     re.I)
+                pattern = re.compile(r"(\d*)-(\d*)-(\d*) (\d*):(\d*):(\d*)", re.I)
             m = pattern.match(date.strip())
 
             if m:

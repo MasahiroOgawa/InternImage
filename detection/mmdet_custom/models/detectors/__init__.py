@@ -6,4 +6,4 @@
 
 from .dino import DINO
 
-__all__ = ['DINO']
+__all__ = ["DINO"]

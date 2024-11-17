@@ -10,16 +10,19 @@ from data_converter import nuscenes_occ_converter as occ_converter
 import argparse
 from os import path as osp
 import sys
-sys.path.append('.')
+
+sys.path.append(".")
 
 
-def nuscenes_data_prep(root_path,
-                       can_bus_root_path,
-                       info_prefix,
-                       version,
-                       dataset_name,
-                       out_dir,
-                       max_sweeps=10):
+def nuscenes_data_prep(
+    root_path,
+    can_bus_root_path,
+    info_prefix,
+    version,
+    dataset_name,
+    out_dir,
+    max_sweeps=10,
+):
     """Prepare data related to nuScenes dataset.
 
     Related data consists of '.pkl' files recording basic infos,
@@ -34,34 +37,42 @@ def nuscenes_data_prep(root_path,
         max_sweeps (int): Number of input consecutive frames. Default: 10
     """
     nuscenes_converter.create_nuscenes_infos(
-        root_path, out_dir, can_bus_root_path, info_prefix, version=version, max_sweeps=max_sweeps)
+        root_path,
+        out_dir,
+        can_bus_root_path,
+        info_prefix,
+        version=version,
+        max_sweeps=max_sweeps,
+    )
 
-    if version == 'v1.0-test':
-        info_test_path = osp.join(
-            out_dir, f'{info_prefix}_infos_temporal_test.pkl')
+    if version == "v1.0-test":
+        info_test_path = osp.join(out_dir, f"{info_prefix}_infos_temporal_test.pkl")
         nuscenes_converter.export_2d_annotation(
-            root_path, info_test_path, version=version)
+            root_path, info_test_path, version=version
+        )
     else:
-        info_train_path = osp.join(
-            out_dir, f'{info_prefix}_infos_temporal_train.pkl')
-        info_val_path = osp.join(
-            out_dir, f'{info_prefix}_infos_temporal_val.pkl')
+        info_train_path = osp.join(out_dir, f"{info_prefix}_infos_temporal_train.pkl")
+        info_val_path = osp.join(out_dir, f"{info_prefix}_infos_temporal_val.pkl")
         nuscenes_converter.export_2d_annotation(
-            root_path, info_train_path, version=version)
+            root_path, info_train_path, version=version
+        )
         nuscenes_converter.export_2d_annotation(
-            root_path, info_val_path, version=version)
+            root_path, info_val_path, version=version
+        )
         # create_groundtruth_database(dataset_name, root_path, info_prefix,
         #                             f'{out_dir}/{info_prefix}_infos_train.pkl')
 
 
-def occ_nuscenes_data_prep(root_path,
-                        occ_path,
-                       can_bus_root_path,
-                       info_prefix,
-                       version,
-                       dataset_name,
-                       out_dir,
-                       max_sweeps=10):
+def occ_nuscenes_data_prep(
+    root_path,
+    occ_path,
+    can_bus_root_path,
+    info_prefix,
+    version,
+    dataset_name,
+    out_dir,
+    max_sweeps=10,
+):
     """Prepare occ data related to nuScenes dataset.
 
     Related data consists of '.pkl' files recording basic infos,
@@ -76,7 +87,14 @@ def occ_nuscenes_data_prep(root_path,
         max_sweeps (int): Number of input consecutive frames. Default: 10
     """
     occ_converter.create_nuscenes_occ_infos(
-        root_path, occ_path,out_dir, can_bus_root_path, info_prefix, version=version, max_sweeps=max_sweeps)
+        root_path,
+        occ_path,
+        out_dir,
+        can_bus_root_path,
+        info_prefix,
+        version=version,
+        max_sweeps=max_sweeps,
+    )
 
     # if version == 'v1.0-test':
     #     info_test_path = osp.join(
@@ -92,97 +110,100 @@ def occ_nuscenes_data_prep(root_path,
     #         root_path, info_train_path, version=version)
     #     nuscenes_converter.export_2d_annotation(
     #         root_path, info_val_path, version=version)
-        # create_groundtruth_database(dataset_name, root_path, info_prefix,
-        #                             f'{out_dir}/{info_prefix}_infos_train.pkl')
+    # create_groundtruth_database(dataset_name, root_path, info_prefix,
+    #                             f'{out_dir}/{info_prefix}_infos_train.pkl')
 
 
-
-
-
-
-parser = argparse.ArgumentParser(description='Data converter arg parser')
-parser.add_argument('dataset', metavar='kitti', help='name of the dataset')
+parser = argparse.ArgumentParser(description="Data converter arg parser")
+parser.add_argument("dataset", metavar="kitti", help="name of the dataset")
 parser.add_argument(
-    '--root-path',
+    "--root-path",
     type=str,
-    default='./data/kitti',
-    help='specify the root path of dataset')
+    default="./data/kitti",
+    help="specify the root path of dataset",
+)
 parser.add_argument(
-    '--occ-path',
-    type=str,
-    default='./data/occ',
-    help='specify the occ path of dataset')
+    "--occ-path", type=str, default="./data/occ", help="specify the occ path of dataset"
+)
 parser.add_argument(
-    '--canbus',
+    "--canbus",
     type=str,
-    default='./data',
-    help='specify the root path of nuScenes canbus')
+    default="./data",
+    help="specify the root path of nuScenes canbus",
+)
 parser.add_argument(
-    '--version',
+    "--version",
     type=str,
-    default='v1.0',
+    default="v1.0",
     required=False,
-    help='specify the dataset version, no need for kitti')
+    help="specify the dataset version, no need for kitti",
+)
 parser.add_argument(
-    '--max-sweeps',
+    "--max-sweeps",
     type=int,
     default=10,
     required=False,
-    help='specify sweeps of lidar per example')
+    help="specify sweeps of lidar per example",
+)
 parser.add_argument(
-    '--out-dir',
+    "--out-dir",
     type=str,
-    default='./data/kitti',
-    required='False',
-    help='name of info pkl')
-parser.add_argument('--extra-tag', type=str, default='kitti')
+    default="./data/kitti",
+    required="False",
+    help="name of info pkl",
+)
+parser.add_argument("--extra-tag", type=str, default="kitti")
 parser.add_argument(
-    '--workers', type=int, default=4, help='number of threads to be used')
+    "--workers", type=int, default=4, help="number of threads to be used"
+)
 args = parser.parse_args()
 
-if __name__ == '__main__':
-    if args.dataset == 'nuscenes' and args.version != 'v1.0-mini':
-        train_version = f'{args.version}-trainval'
+if __name__ == "__main__":
+    if args.dataset == "nuscenes" and args.version != "v1.0-mini":
+        train_version = f"{args.version}-trainval"
         nuscenes_data_prep(
             root_path=args.root_path,
             can_bus_root_path=args.canbus,
             info_prefix=args.extra_tag,
             version=train_version,
-            dataset_name='NuScenesDataset',
+            dataset_name="NuScenesDataset",
             out_dir=args.out_dir,
-            max_sweeps=args.max_sweeps)
-        test_version = f'{args.version}-test'
+            max_sweeps=args.max_sweeps,
+        )
+        test_version = f"{args.version}-test"
         nuscenes_data_prep(
             root_path=args.root_path,
             can_bus_root_path=args.canbus,
             info_prefix=args.extra_tag,
             version=test_version,
-            dataset_name='NuScenesDataset',
+            dataset_name="NuScenesDataset",
             out_dir=args.out_dir,
-            max_sweeps=args.max_sweeps)
+            max_sweeps=args.max_sweeps,
+        )
 
-
-    elif args.dataset == 'nuscenes' and args.version == 'v1.0-mini':
-        train_version = f'{args.version}'
+    elif args.dataset == "nuscenes" and args.version == "v1.0-mini":
+        train_version = f"{args.version}"
         nuscenes_data_prep(
             root_path=args.root_path,
             can_bus_root_path=args.canbus,
             info_prefix=args.extra_tag,
             version=train_version,
-            dataset_name='NuScenesDataset',
+            dataset_name="NuScenesDataset",
             out_dir=args.out_dir,
-            max_sweeps=args.max_sweeps)
-    elif args.dataset == 'occ' and args.version != 'v1.0-mini':
-        train_version = f'{args.version}'
+            max_sweeps=args.max_sweeps,
+        )
+    elif args.dataset == "occ" and args.version != "v1.0-mini":
+        train_version = f"{args.version}"
         occ_nuscenes_data_prep(
             root_path=args.root_path,
             occ_path=args.occ_path,
             can_bus_root_path=args.canbus,
             info_prefix=args.extra_tag,
             version=train_version,
-            dataset_name='NuScenesDataset',
+            dataset_name="NuScenesDataset",
             out_dir=args.out_dir,
-            max_sweeps=args.max_sweeps)
+            max_sweeps=args.max_sweeps,
+        )
         # test_version = f'{args.version}-test'
         # nuscenes_data_prep(
         #     root_path=args.root_path,
@@ -192,15 +213,15 @@ if __name__ == '__main__':
         #     dataset_name='NuScenesDataset',
         #     out_dir=args.out_dir,
         #     max_sweeps=args.max_sweeps)
-    elif args.dataset == 'occ' and args.version == 'v1.0-mini':
-        train_version = f'{args.version}'
+    elif args.dataset == "occ" and args.version == "v1.0-mini":
+        train_version = f"{args.version}"
         occ_nuscenes_data_prep(
             root_path=args.root_path,
             occ_path=args.occ_path,
             can_bus_root_path=args.canbus,
             info_prefix=args.extra_tag,
             version=train_version,
-            dataset_name='NuScenesDataset',
+            dataset_name="NuScenesDataset",
             out_dir=args.out_dir,
-            max_sweeps=args.max_sweeps)
-
+            max_sweeps=args.max_sweeps,
+        )

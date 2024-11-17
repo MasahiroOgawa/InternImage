@@ -9,22 +9,25 @@ import torch
 import torch.distributed as dist
 
 
-def _allreduce_fut(process_group: dist.ProcessGroup,
-                   tensor: torch.Tensor) -> torch.futures.Future[torch.Tensor]:
+def _allreduce_fut(
+    process_group: dist.ProcessGroup, tensor: torch.Tensor
+) -> torch.futures.Future[torch.Tensor]:
     "Averages the input gradient tensor by allreduce and returns a future."
     group_to_use = process_group if process_group is not None else dist.group.WORLD
 
     # Apply the division first to avoid overflow, especially for FP16.
     tensor.div_(group_to_use.size())
 
-    return (dist.all_reduce(
-        tensor, group=group_to_use,
-        async_op=True).get_future().then(lambda fut: fut.value()[0]))
+    return (
+        dist.all_reduce(tensor, group=group_to_use, async_op=True)
+        .get_future()
+        .then(lambda fut: fut.value()[0])
+    )
 
 
 def allreduce_hook(
-        process_group: dist.ProcessGroup,
-        bucket: dist.GradBucket) -> torch.futures.Future[torch.Tensor]:
+    process_group: dist.ProcessGroup, bucket: dist.GradBucket
+) -> torch.futures.Future[torch.Tensor]:
     """
     This DDP communication hook just calls ``allreduce`` using ``GradBucket``
     tensors. Once gradient tensors are aggregated across all workers, its ``then``
@@ -41,8 +44,8 @@ def allreduce_hook(
 
 
 def fp16_compress_hook(
-        process_group: dist.ProcessGroup,
-        bucket: dist.GradBucket) -> torch.futures.Future[torch.Tensor]:
+    process_group: dist.ProcessGroup, bucket: dist.GradBucket
+) -> torch.futures.Future[torch.Tensor]:
     """
     This DDP communication hook implements a simple gradient compression
     approach that casts ``GradBucket`` tensor to half-precision floating-point format (``torch.float16``)
@@ -58,8 +61,9 @@ def fp16_compress_hook(
 
     compressed_tensor = bucket.buffer().to(torch.float16).div_(world_size)
 
-    fut = dist.all_reduce(compressed_tensor, group=group_to_use,
-                          async_op=True).get_future()
+    fut = dist.all_reduce(
+        compressed_tensor, group=group_to_use, async_op=True
+    ).get_future()
 
     def decompress(fut):
         decompressed_tensor = bucket.buffer()
@@ -75,8 +79,8 @@ def fp16_compress_hook(
 
 
 def bf16_compress_hook(
-        process_group: dist.ProcessGroup,
-        bucket: dist.GradBucket) -> torch.futures.Future[torch.Tensor]:
+    process_group: dist.ProcessGroup, bucket: dist.GradBucket
+) -> torch.futures.Future[torch.Tensor]:
     """
     Warning: This API is experimental, and it requires NCCL version later than 2.9.6.
 
@@ -95,8 +99,9 @@ def bf16_compress_hook(
 
     compressed_tensor = bucket.buffer().to(torch.bfloat16).div_(world_size)
 
-    fut = dist.all_reduce(compressed_tensor, group=group_to_use,
-                          async_op=True).get_future()
+    fut = dist.all_reduce(
+        compressed_tensor, group=group_to_use, async_op=True
+    ).get_future()
 
     def decompress(fut):
         decompressed_tensor = bucket.buffer()
@@ -109,7 +114,7 @@ def bf16_compress_hook(
 
 
 def fp16_compress_wrapper(
-    hook: Callable[[Any, dist.GradBucket], torch.futures.Future[torch.Tensor]]
+    hook: Callable[[Any, dist.GradBucket], torch.futures.Future[torch.Tensor]],
 ) -> Callable[[Any, dist.GradBucket], torch.futures.Future[torch.Tensor]]:
     """
     This wrapper casts the input gradient tensor of a given DDP communication hook to half-precision
@@ -124,8 +129,8 @@ def fp16_compress_wrapper(
     """
 
     def fp16_compress_wrapper_hook(
-            hook_state,
-            bucket: dist.GradBucket) -> torch.futures.Future[torch.Tensor]:
+        hook_state, bucket: dist.GradBucket
+    ) -> torch.futures.Future[torch.Tensor]:
         # Cast bucket tensor to FP16.
         bucket.set_buffer(bucket.buffer().to(torch.float16))
 
@@ -145,7 +150,7 @@ def fp16_compress_wrapper(
 
 
 def bf16_compress_wrapper(
-    hook: Callable[[Any, dist.GradBucket], torch.futures.Future[torch.Tensor]]
+    hook: Callable[[Any, dist.GradBucket], torch.futures.Future[torch.Tensor]],
 ) -> Callable[[Any, dist.GradBucket], torch.futures.Future[torch.Tensor]]:
     """
     Warning: This API is experimental, and it requires NCCL version later than 2.9.6.
@@ -162,8 +167,8 @@ def bf16_compress_wrapper(
     """
 
     def bf16_compress_wrapper_hook(
-            hook_state,
-            bucket: dist.GradBucket) -> torch.futures.Future[torch.Tensor]:
+        hook_state, bucket: dist.GradBucket
+    ) -> torch.futures.Future[torch.Tensor]:
         # Cast bucket tensor to BF16.
         bucket.set_buffer(bucket.buffer().to(torch.bfloat16))
 

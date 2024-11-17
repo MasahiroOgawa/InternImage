@@ -34,10 +34,7 @@ class PerceptionTransformer(BaseModule):
             `as_two_stage` as True. Default: 300.
     """
 
-    def __init__(self,
-                 decoder=None,
-                 embed_dims=256,
-                 **kwargs):
+    def __init__(self, decoder=None, embed_dims=256, **kwargs):
         super(PerceptionTransformer, self).__init__(**kwargs)
         self.decoder = build_transformer_layer_sequence(decoder)
         self.embed_dims = embed_dims
@@ -54,25 +51,37 @@ class PerceptionTransformer(BaseModule):
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
         for m in self.modules():
-            if isinstance(m, MSDeformableAttention3D) or isinstance(m, TemporalSelfAttention) \
-                    or isinstance(m, CustomMSDeformableAttention):
+            if (
+                isinstance(m, MSDeformableAttention3D)
+                or isinstance(m, TemporalSelfAttention)
+                or isinstance(m, CustomMSDeformableAttention)
+            ):
                 try:
                     m.init_weight()
                 except AttributeError:
                     m.init_weights()
-        xavier_init(self.reference_points, distribution='uniform', bias=0.)
+        xavier_init(self.reference_points, distribution="uniform", bias=0.0)
 
-
-    @auto_fp16(apply_to=('mlvl_feats', 'bev_queries', 'object_query_embed', 'prev_bev', 'bev_pos'))
-    def forward(self,
-                mlvl_feats,
-                bev_embed,
-                object_query_embed,
-                bev_h,
-                bev_w,
-                reg_branches=None,
-                cls_branches=None,
-                **kwargs):
+    @auto_fp16(
+        apply_to=(
+            "mlvl_feats",
+            "bev_queries",
+            "object_query_embed",
+            "prev_bev",
+            "bev_pos",
+        )
+    )
+    def forward(
+        self,
+        mlvl_feats,
+        bev_embed,
+        object_query_embed,
+        bev_h,
+        bev_w,
+        reg_branches=None,
+        cls_branches=None,
+        **kwargs,
+    ):
         """Forward function for `Detr3DTransformer`.
         Args:
             mlvl_feats (list(Tensor)): Input queries from
@@ -111,8 +120,7 @@ class PerceptionTransformer(BaseModule):
         """
 
         bs = mlvl_feats[0].size(0)
-        query_pos, query = torch.split(
-            object_query_embed, self.embed_dims, dim=1)
+        query_pos, query = torch.split(object_query_embed, self.embed_dims, dim=1)
         query_pos = query_pos.unsqueeze(0).expand(bs, -1, -1)
         query = query.unsqueeze(0).expand(bs, -1, -1)
         reference_points = self.reference_points(query_pos)
@@ -132,7 +140,8 @@ class PerceptionTransformer(BaseModule):
             cls_branches=cls_branches,
             spatial_shapes=torch.tensor([[bev_h, bev_w]], device=query.device),
             level_start_index=torch.tensor([0], device=query.device),
-            **kwargs)
+            **kwargs,
+        )
 
         inter_references_out = inter_references
 

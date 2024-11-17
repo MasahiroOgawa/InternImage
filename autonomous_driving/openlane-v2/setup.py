@@ -1,5 +1,5 @@
 # ==============================================================================
-# Binaries and/or source for the following packages or projects 
+# Binaries and/or source for the following packages or projects
 # are presented under one or more of the following open source licenses:
 # setup.py    The OpenLane-V2 Dataset Authors    Apache License, Version 2.0
 #
@@ -24,12 +24,12 @@ from setuptools import setup, find_packages
 
 
 setup(
-    name='openlanev2',
-    version='0.1.0',
-    author='The OpenLane-V2 Dataset Authors',
-    author_email='wanghuijie@pjlab.org.cn',
-    description='The official devkit of the OpenLane-V2 dataset.',
-    url='https://github.com/OpenDriveLab/OpenLane-V2',
+    name="openlanev2",
+    version="0.1.0",
+    author="The OpenLane-V2 Dataset Authors",
+    author_email="wanghuijie@pjlab.org.cn",
+    description="The official devkit of the OpenLane-V2 dataset.",
+    url="https://github.com/OpenDriveLab/OpenLane-V2",
     packages=find_packages(),
-    license='Apache License 2.0',
+    license="Apache License 2.0",
 )

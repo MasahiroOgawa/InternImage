@@ -1,8 +1,10 @@
 import torch
 import torch.nn.functional as F
 from mmcv.cnn import PLUGIN_LAYERS, Conv2d, ConvModule, kaiming_init
-from mmcv.cnn.bricks.transformer import (build_positional_encoding,
-                                         build_transformer_layer_sequence)
+from mmcv.cnn.bricks.transformer import (
+    build_positional_encoding,
+    build_transformer_layer_sequence,
+)
 from mmcv.runner import BaseModule, ModuleList
 
 
@@ -28,13 +30,16 @@ class PixelDecoder(BaseModule):
         init_cfg (obj:`mmcv.ConfigDict`|dict):  Initialization config dict.
             Default: None
     """
-    def __init__(self,
-                 in_channels,
-                 feat_channels,
-                 out_channels,
-                 norm_cfg=dict(type='GN', num_groups=32),
-                 act_cfg=dict(type='ReLU'),
-                 init_cfg=None):
+
+    def __init__(
+        self,
+        in_channels,
+        feat_channels,
+        out_channels,
+        norm_cfg=dict(type="GN", num_groups=32),
+        act_cfg=dict(type="ReLU"),
+        init_cfg=None,
+    ):
         super().__init__(init_cfg=init_cfg)
         self.in_channels = in_channels
         self.num_inputs = len(in_channels)
@@ -48,7 +53,8 @@ class PixelDecoder(BaseModule):
                 kernel_size=1,
                 bias=self.use_bias,
                 norm_cfg=norm_cfg,
-                act_cfg=None)
+                act_cfg=None,
+            )
             o_conv = ConvModule(
                 feat_channels,
                 feat_channels,
@@ -57,7 +63,8 @@ class PixelDecoder(BaseModule):
                 padding=1,
                 bias=self.use_bias,
                 norm_cfg=norm_cfg,
-                act_cfg=act_cfg)
+                act_cfg=act_cfg,
+            )
             self.lateral_convs.append(l_conv)
             self.output_convs.append(o_conv)
 
@@ -69,9 +76,11 @@ class PixelDecoder(BaseModule):
             stride=1,
             bias=self.use_bias,
             norm_cfg=norm_cfg,
-            act_cfg=act_cfg)
+            act_cfg=act_cfg,
+        )
         self.mask_feature = Conv2d(
-            feat_channels, out_channels, kernel_size=3, stride=1, padding=1)
+            feat_channels, out_channels, kernel_size=3, stride=1, padding=1
+        )
 
     def init_weights(self):
         """Initialize weights."""
@@ -101,8 +110,7 @@ class PixelDecoder(BaseModule):
         for i in range(self.num_inputs - 2, -1, -1):
             x = feats[i]
             cur_fpn = self.lateral_convs[i](x)
-            y = cur_fpn + \
-                F.interpolate(y, size=cur_fpn.shape[-2:], mode='nearest')
+            y = cur_fpn + F.interpolate(y, size=cur_fpn.shape[-2:], mode="nearest")
             y = self.output_convs[i](y)
 
         mask_feature = self.mask_feature(y)
@@ -132,36 +140,40 @@ class TransformerEncoderPixelDecoder(PixelDecoder):
         init_cfg (obj:`mmcv.ConfigDict`|dict):  Initialization config dict.
             Default: None
     """
-    def __init__(self,
-                 in_channels,
-                 feat_channels,
-                 out_channels,
-                 norm_cfg=dict(type='GN', num_groups=32),
-                 act_cfg=dict(type='ReLU'),
-                 encoder=None,
-                 positional_encoding=dict(
-                     type='SinePositionalEncoding',
-                     num_feats=128,
-                     normalize=True),
-                 init_cfg=None):
+
+    def __init__(
+        self,
+        in_channels,
+        feat_channels,
+        out_channels,
+        norm_cfg=dict(type="GN", num_groups=32),
+        act_cfg=dict(type="ReLU"),
+        encoder=None,
+        positional_encoding=dict(
+            type="SinePositionalEncoding", num_feats=128, normalize=True
+        ),
+        init_cfg=None,
+    ):
         super(TransformerEncoderPixelDecoder, self).__init__(
             in_channels,
             feat_channels,
             out_channels,
             norm_cfg,
             act_cfg,
-            init_cfg=init_cfg)
+            init_cfg=init_cfg,
+        )
         self.last_feat_conv = None
 
         self.encoder = build_transformer_layer_sequence(encoder)
         self.encoder_embed_dims = self.encoder.embed_dims
-        assert self.encoder_embed_dims == feat_channels, 'embed_dims({}) of ' \
-            'tranformer encoder must equal to feat_channels({})'.format(
-                feat_channels, self.encoder_embed_dims)
-        self.positional_encoding = build_positional_encoding(
-            positional_encoding)
-        self.encoder_in_proj = Conv2d(
-            in_channels[-1], feat_channels, kernel_size=1)
+        assert self.encoder_embed_dims == feat_channels, (
+            "embed_dims({}) of "
+            "tranformer encoder must equal to feat_channels({})".format(
+                feat_channels, self.encoder_embed_dims
+            )
+        )
+        self.positional_encoding = build_positional_encoding(positional_encoding)
+        self.encoder_in_proj = Conv2d(in_channels[-1], feat_channels, kernel_size=1)
         self.encoder_out_proj = ConvModule(
             feat_channels,
             feat_channels,
@@ -170,7 +182,8 @@ class TransformerEncoderPixelDecoder(PixelDecoder):
             padding=1,
             bias=self.use_bias,
             norm_cfg=norm_cfg,
-            act_cfg=act_cfg)
+            act_cfg=act_cfg,
+        )
 
     def init_weights(self):
         """Initialize weights."""
@@ -198,17 +211,21 @@ class TransformerEncoderPixelDecoder(PixelDecoder):
         """
         feat_last = feats[-1]
         bs, c, h, w = feat_last.shape
-        input_img_h, input_img_w = img_metas[0]['pad_shape'][:-1]
+        input_img_h, input_img_w = img_metas[0]["pad_shape"][:-1]
         # input_img_h, input_img_w = img_metas[0]['batch_input_shape']
-        padding_mask = feat_last.new_ones((bs, input_img_h, input_img_w),
-                                          dtype=torch.float32)
+        padding_mask = feat_last.new_ones(
+            (bs, input_img_h, input_img_w), dtype=torch.float32
+        )
         for i in range(bs):
-            img_h, img_w, _ = img_metas[i]['img_shape']
+            img_h, img_w, _ = img_metas[i]["img_shape"]
             padding_mask[i, :img_h, :img_w] = 0
-        padding_mask = F.interpolate(
-            padding_mask.unsqueeze(1),
-            size=feat_last.shape[-2:],
-            mode='nearest').to(torch.bool).squeeze(1)
+        padding_mask = (
+            F.interpolate(
+                padding_mask.unsqueeze(1), size=feat_last.shape[-2:], mode="nearest"
+            )
+            .to(torch.bool)
+            .squeeze(1)
+        )
 
         pos_embed = self.positional_encoding(padding_mask)
         feat_last = self.encoder_in_proj(feat_last)
@@ -221,16 +238,15 @@ class TransformerEncoderPixelDecoder(PixelDecoder):
             key=None,
             value=None,
             query_pos=pos_embed,
-            query_key_padding_mask=padding_mask)
+            query_key_padding_mask=padding_mask,
+        )
         # [nq, bs, em] -> [bs, c, h, w]
-        memory = memory.permute(1, 2, 0).view(bs, self.encoder_embed_dims, h,
-                                              w)
+        memory = memory.permute(1, 2, 0).view(bs, self.encoder_embed_dims, h, w)
         y = self.encoder_out_proj(memory)
         for i in range(self.num_inputs - 2, -1, -1):
             x = feats[i]
             cur_fpn = self.lateral_convs[i](x)
-            y = cur_fpn + \
-                F.interpolate(y, size=cur_fpn.shape[-2:], mode='nearest')
+            y = cur_fpn + F.interpolate(y, size=cur_fpn.shape[-2:], mode="nearest")
             y = self.output_convs[i](y)
 
         mask_feature = self.mask_feature(y)

@@ -1,5 +1,5 @@
 # ==============================================================================
-# Binaries and/or source for the following packages or projects 
+# Binaries and/or source for the following packages or projects
 # are presented under one or more of the following open source licenses:
 # f_score.py    The OpenLane-V2 Dataset Authors    Apache License, Version 2.0
 #
@@ -24,7 +24,7 @@
 # ==============================================================================
 
 """
-Description: This code is to evaluate 3D lane detection. The optimal matching between ground-truth set and predicted 
+Description: This code is to evaluate 3D lane detection. The optimal matching between ground-truth set and predicted
     set of lanes are sought via solving a min cost flow.
 Evaluation metrics includes:
     F-scores
@@ -33,7 +33,6 @@ Evaluation metrics includes:
     z error close (0 - 40 m)
     z error far (0 - 100 m)
 """
-
 
 import numpy as np
 from scipy.interpolate import interp1d
@@ -51,13 +50,15 @@ def resample_laneline_in_x(input_lane, steps, out_vis=False):
     """
 
     # at least two points are included
-    assert(input_lane.shape[0] >= 2)
+    assert input_lane.shape[0] >= 2
 
-    x_min = np.min(input_lane[:, 0])-5
-    x_max = np.max(input_lane[:, 0])+5
+    x_min = np.min(input_lane[:, 0]) - 5
+    x_max = np.max(input_lane[:, 0]) + 5
 
     if input_lane.shape[1] < 3:
-        input_lane = np.concatenate([input_lane, np.zeros([input_lane.shape[0], 1], dtype=np.float32)], axis=1)
+        input_lane = np.concatenate(
+            [input_lane, np.zeros([input_lane.shape[0], 1], dtype=np.float32)], axis=1
+        )
 
     f_y = interp1d(input_lane[:, 0], input_lane[:, 1], fill_value="extrapolate")
     f_z = interp1d(input_lane[:, 0], input_lane[:, 2], fill_value="extrapolate")
@@ -69,6 +70,7 @@ def resample_laneline_in_x(input_lane, steps, out_vis=False):
         output_visibility = np.logical_and(steps >= x_min, steps <= x_max)
         return y_values, z_values, output_visibility.astype(np.float32) + 1e-9
     return y_values, z_values
+
 
 def SolveMinCostFlow(adj_mat, cost_mat):
     """
@@ -87,24 +89,47 @@ def SolveMinCostFlow(adj_mat, cost_mat):
     cnt_nonzero_col = int(np.sum(np.sum(adj_mat, axis=0) > 0))
 
     # prepare directed graph for the flow
-    start_nodes = np.zeros(cnt_1, dtype=np.int32).tolist() +\
-                  np.repeat(np.array(range(1, cnt_1+1)), cnt_2).tolist() + \
-                  [i for i in range(cnt_1+1, cnt_1 + cnt_2 + 1)]
-    end_nodes = [i for i in range(1, cnt_1+1)] + \
-                np.repeat(np.array([i for i in range(cnt_1+1, cnt_1 + cnt_2 + 1)]).reshape([1, -1]), cnt_1, axis=0).flatten().tolist() + \
-                [cnt_1 + cnt_2 + 1 for i in range(cnt_2)]
-    capacities = np.ones(cnt_1, dtype=np.int32).tolist() + adj_mat.flatten().astype(np.int32).tolist() + np.ones(cnt_2, dtype=np.int32).tolist()
-    costs = (np.zeros(cnt_1, dtype=np.int32).tolist() + cost_mat.flatten().astype(np.int32).tolist() + np.zeros(cnt_2, dtype=np.int32).tolist())
+    start_nodes = (
+        np.zeros(cnt_1, dtype=np.int32).tolist()
+        + np.repeat(np.array(range(1, cnt_1 + 1)), cnt_2).tolist()
+        + [i for i in range(cnt_1 + 1, cnt_1 + cnt_2 + 1)]
+    )
+    end_nodes = (
+        [i for i in range(1, cnt_1 + 1)]
+        + np.repeat(
+            np.array([i for i in range(cnt_1 + 1, cnt_1 + cnt_2 + 1)]).reshape([1, -1]),
+            cnt_1,
+            axis=0,
+        )
+        .flatten()
+        .tolist()
+        + [cnt_1 + cnt_2 + 1 for i in range(cnt_2)]
+    )
+    capacities = (
+        np.ones(cnt_1, dtype=np.int32).tolist()
+        + adj_mat.flatten().astype(np.int32).tolist()
+        + np.ones(cnt_2, dtype=np.int32).tolist()
+    )
+    costs = (
+        np.zeros(cnt_1, dtype=np.int32).tolist()
+        + cost_mat.flatten().astype(np.int32).tolist()
+        + np.zeros(cnt_2, dtype=np.int32).tolist()
+    )
     # Define an array of supplies at each node.
-    supplies = [min(cnt_nonzero_row, cnt_nonzero_col)] + np.zeros(cnt_1 + cnt_2, dtype=np.int32).tolist() + [-min(cnt_nonzero_row, cnt_nonzero_col)]
+    supplies = (
+        [min(cnt_nonzero_row, cnt_nonzero_col)]
+        + np.zeros(cnt_1 + cnt_2, dtype=np.int32).tolist()
+        + [-min(cnt_nonzero_row, cnt_nonzero_col)]
+    )
     # supplies = [min(cnt_1, cnt_2)] + np.zeros(cnt_1 + cnt_2, dtype=np.int).tolist() + [-min(cnt_1, cnt_2)]
     source = 0
     sink = cnt_1 + cnt_2 + 1
 
     # Add each arc.
     for i in range(len(start_nodes)):
-        min_cost_flow.AddArcWithCapacityAndUnitCost(start_nodes[i], end_nodes[i],
-                                                    capacities[i], costs[i])
+        min_cost_flow.AddArcWithCapacityAndUnitCost(
+            start_nodes[i], end_nodes[i], capacities[i], costs[i]
+        )
 
     # Add node supplies.
     for i in range(len(supplies)):
@@ -116,10 +141,8 @@ def SolveMinCostFlow(adj_mat, cost_mat):
         # print('Total cost = ', min_cost_flow.OptimalCost())
         # print()
         for arc in range(min_cost_flow.NumArcs()):
-
             # Can ignore arcs leading out of source or into sink.
-            if min_cost_flow.Tail(arc)!=source and min_cost_flow.Head(arc)!=sink:
-
+            if min_cost_flow.Tail(arc) != source and min_cost_flow.Head(arc) != sink:
                 # Arcs in the solution have a flow value of 1. Their start and end nodes
                 # give an assignment of worker to task.
 
@@ -128,16 +151,21 @@ def SolveMinCostFlow(adj_mat, cost_mat):
                     #     min_cost_flow.Tail(arc)-1,
                     #     min_cost_flow.Head(arc)-cnt_1-1,
                     #     min_cost_flow.UnitCost(arc)))
-                    match_results.append([min_cost_flow.Tail(arc)-1,
-                                          min_cost_flow.Head(arc)-cnt_1-1,
-                                          min_cost_flow.UnitCost(arc)])
+                    match_results.append(
+                        [
+                            min_cost_flow.Tail(arc) - 1,
+                            min_cost_flow.Head(arc) - cnt_1 - 1,
+                            min_cost_flow.UnitCost(arc),
+                        ]
+                    )
     else:
-        print('There was an issue with the min cost flow input.')
+        print("There was an issue with the min cost flow input.")
 
     return match_results
 
+
 class LaneEval(object):
-    def __init__(self):        
+    def __init__(self):
         self.x_samples = np.linspace(-50, 50, num=100, endpoint=False)
         self.dist_th = 1.5
         self.ratio_th = 0.75
@@ -157,24 +185,42 @@ class LaneEval(object):
         :return:
         """
 
-        r_lane, p_lane, c_lane = 0., 0., 0.
-        
+        r_lane, p_lane, c_lane = 0.0, 0.0, 0.0
+
         gt_lanes = [lane for lane in gt_lanes if lane.shape[0] > 1]
 
         # only consider those pred lanes overlapping with sampling range
-        pred_category = [pred_category[k] for k, lane in enumerate(pred_lanes)
-                        if lane[0, 0] < self.x_samples[-1] and lane[-1, 0] > self.x_samples[0]]
-        pred_lanes = [lane for lane in pred_lanes if lane[0, 0] < self.x_samples[-1] and lane[-1, 0] > self.x_samples[0]]
+        pred_category = [
+            pred_category[k]
+            for k, lane in enumerate(pred_lanes)
+            if lane[0, 0] < self.x_samples[-1] and lane[-1, 0] > self.x_samples[0]
+        ]
+        pred_lanes = [
+            lane
+            for lane in pred_lanes
+            if lane[0, 0] < self.x_samples[-1] and lane[-1, 0] > self.x_samples[0]
+        ]
 
-        pred_category = [pred_category[k] for k, lane in enumerate(pred_lanes) if lane.shape[0] > 1]
+        pred_category = [
+            pred_category[k] for k, lane in enumerate(pred_lanes) if lane.shape[0] > 1
+        ]
         pred_lanes = [lane for lane in pred_lanes if lane.shape[0] > 1]
 
         # only consider those gt lanes overlapping with sampling range
-        gt_category = [gt_category[k] for k, lane in enumerate(gt_lanes)
-                        if lane[0, 0] < self.x_samples[-1] and lane[-1, 0] > self.x_samples[0]]
-        gt_lanes = [lane for lane in gt_lanes if lane[0, 0] < self.x_samples[-1] and lane[-1, 0] > self.x_samples[0]]
+        gt_category = [
+            gt_category[k]
+            for k, lane in enumerate(gt_lanes)
+            if lane[0, 0] < self.x_samples[-1] and lane[-1, 0] > self.x_samples[0]
+        ]
+        gt_lanes = [
+            lane
+            for lane in gt_lanes
+            if lane[0, 0] < self.x_samples[-1] and lane[-1, 0] > self.x_samples[0]
+        ]
 
-        gt_category = [gt_category[k] for k, lane in enumerate(gt_lanes) if lane.shape[0] > 1]
+        gt_category = [
+            gt_category[k] for k, lane in enumerate(gt_lanes) if lane.shape[0] > 1
+        ]
         gt_lanes = [lane for lane in gt_lanes if lane.shape[0] > 1]
 
         cnt_gt = len(gt_lanes)
@@ -187,10 +233,16 @@ class LaneEval(object):
         for i in range(cnt_gt):
             min_x = np.min(np.array(gt_lanes[i])[:, 0])
             max_x = np.max(np.array(gt_lanes[i])[:, 0])
-            y_values, z_values, visibility_vec = resample_laneline_in_x(np.array(gt_lanes[i]), self.x_samples, out_vis=True)
+            y_values, z_values, visibility_vec = resample_laneline_in_x(
+                np.array(gt_lanes[i]), self.x_samples, out_vis=True
+            )
             gt_lanes[i] = np.vstack([y_values, z_values]).T
-            gt_visibility_mat[i, :] = np.logical_and(self.x_samples >= min_x, self.x_samples <= max_x)
-            gt_visibility_mat[i, :] = np.logical_and(gt_visibility_mat[i, :], visibility_vec)
+            gt_visibility_mat[i, :] = np.logical_and(
+                self.x_samples >= min_x, self.x_samples <= max_x
+            )
+            gt_visibility_mat[i, :] = np.logical_and(
+                gt_visibility_mat[i, :], visibility_vec
+            )
 
         for i in range(cnt_pred):
             # # ATTENTION: ensure y mono increase before interpolation: but it can reduce size
@@ -198,21 +250,41 @@ class LaneEval(object):
             # pred_lane = prune_3d_lane_by_range(np.array(pred_lanes[i]), self.x_min, self.x_max)
             min_x = np.min(np.array(pred_lanes[i])[:, 0])
             max_x = np.max(np.array(pred_lanes[i])[:, 0])
-            y_values, z_values, visibility_vec = resample_laneline_in_x(np.array(pred_lanes[i]), self.x_samples, out_vis=True)
+            y_values, z_values, visibility_vec = resample_laneline_in_x(
+                np.array(pred_lanes[i]), self.x_samples, out_vis=True
+            )
             pred_lanes[i] = np.vstack([y_values, z_values]).T
-            pred_visibility_mat[i, :] = np.logical_and(self.x_samples >= min_x, self.x_samples <= max_x)
-            pred_visibility_mat[i, :] = np.logical_and(pred_visibility_mat[i, :], visibility_vec)
+            pred_visibility_mat[i, :] = np.logical_and(
+                self.x_samples >= min_x, self.x_samples <= max_x
+            )
+            pred_visibility_mat[i, :] = np.logical_and(
+                pred_visibility_mat[i, :], visibility_vec
+            )
             # pred_visibility_mat[i, :] = np.logical_and(x_values >= self.x_min, x_values <= self.x_max)
 
         # at least two-points for both gt and pred
-        gt_lanes = [gt_lanes[k] for k in range(cnt_gt) if np.sum(gt_visibility_mat[k, :]) > 1]
-        gt_category = [gt_category[k] for k in range(cnt_gt) if np.sum(gt_visibility_mat[k, :]) > 1]
+        gt_lanes = [
+            gt_lanes[k] for k in range(cnt_gt) if np.sum(gt_visibility_mat[k, :]) > 1
+        ]
+        gt_category = [
+            gt_category[k] for k in range(cnt_gt) if np.sum(gt_visibility_mat[k, :]) > 1
+        ]
         gt_visibility_mat = gt_visibility_mat[np.sum(gt_visibility_mat, axis=-1) > 1, :]
         cnt_gt = len(gt_lanes)
 
-        pred_lanes = [pred_lanes[k] for k in range(cnt_pred) if np.sum(pred_visibility_mat[k, :]) > 1]
-        pred_category = [pred_category[k] for k in range(cnt_pred) if np.sum(pred_visibility_mat[k, :]) > 1]
-        pred_visibility_mat = pred_visibility_mat[np.sum(pred_visibility_mat, axis=-1) > 1, :]
+        pred_lanes = [
+            pred_lanes[k]
+            for k in range(cnt_pred)
+            if np.sum(pred_visibility_mat[k, :]) > 1
+        ]
+        pred_category = [
+            pred_category[k]
+            for k in range(cnt_pred)
+            if np.sum(pred_visibility_mat[k, :]) > 1
+        ]
+        pred_visibility_mat = pred_visibility_mat[
+            np.sum(pred_visibility_mat, axis=-1) > 1, :
+        ]
         cnt_pred = len(pred_lanes)
 
         adj_mat = np.zeros((cnt_gt, cnt_pred), dtype=int)
@@ -227,22 +299,30 @@ class LaneEval(object):
                 z_dist = np.abs(gt_lanes[i][:, 1] - pred_lanes[j][:, 1])
 
                 # apply visibility to penalize different partial matching accordingly
-                both_visible_indices = np.logical_and(gt_visibility_mat[i, :] >= 0.5, pred_visibility_mat[j, :] >= 0.5)
-                both_invisible_indices = np.logical_and(gt_visibility_mat[i, :] < 0.5, pred_visibility_mat[j, :] < 0.5)
-                other_indices = np.logical_not(np.logical_or(both_visible_indices, both_invisible_indices))
-                
-                euclidean_dist = np.sqrt(y_dist ** 2 + z_dist ** 2)
+                both_visible_indices = np.logical_and(
+                    gt_visibility_mat[i, :] >= 0.5, pred_visibility_mat[j, :] >= 0.5
+                )
+                both_invisible_indices = np.logical_and(
+                    gt_visibility_mat[i, :] < 0.5, pred_visibility_mat[j, :] < 0.5
+                )
+                other_indices = np.logical_not(
+                    np.logical_or(both_visible_indices, both_invisible_indices)
+                )
+
+                euclidean_dist = np.sqrt(y_dist**2 + z_dist**2)
                 euclidean_dist[both_invisible_indices] = 0
                 euclidean_dist[other_indices] = self.dist_th
 
                 # if np.average(euclidean_dist) < 2*self.dist_th: # don't prune here to encourage finding perfect match
-                num_match_mat[i, j] = np.sum(euclidean_dist < self.dist_th) - np.sum(both_invisible_indices)
+                num_match_mat[i, j] = np.sum(euclidean_dist < self.dist_th) - np.sum(
+                    both_invisible_indices
+                )
                 adj_mat[i, j] = 1
                 # ATTENTION: use the sum as int type to meet the requirements of min cost flow optimization (int type)
                 # using num_match_mat as cost does not work?
                 # make sure cost is not set to 0 when it's smaller than 1
                 cost_ = np.sum(euclidean_dist)
-                if cost_<1 and cost_>0:
+                if cost_ < 1 and cost_ > 0:
                     cost_ = 1
                 else:
                     cost_ = (cost_).astype(int)
@@ -265,28 +345,35 @@ class LaneEval(object):
                     gt_i = match_results[i, 0]
                     pred_i = match_results[i, 1]
                     # consider match when the matched points is above a ratio
-                    if num_match_mat[gt_i, pred_i] / np.sum(gt_visibility_mat[gt_i, :]) >= self.ratio_th:
+                    if (
+                        num_match_mat[gt_i, pred_i] / np.sum(gt_visibility_mat[gt_i, :])
+                        >= self.ratio_th
+                    ):
                         r_lane += 1
                         match_gt_ids.append(gt_i)
-                    if num_match_mat[gt_i, pred_i] / np.sum(pred_visibility_mat[pred_i, :]) >= self.ratio_th:
+                    if (
+                        num_match_mat[gt_i, pred_i]
+                        / np.sum(pred_visibility_mat[pred_i, :])
+                        >= self.ratio_th
+                    ):
                         p_lane += 1
                         match_pred_ids.append(pred_i)
                     if pred_category != []:
-                        if pred_category[pred_i] == gt_category[gt_i] or (pred_category[pred_i]==20 and gt_category[gt_i]==21):
-                            c_lane += 1    # category matched num
+                        if pred_category[pred_i] == gt_category[gt_i] or (
+                            pred_category[pred_i] == 20 and gt_category[gt_i] == 21
+                        ):
+                            c_lane += 1  # category matched num
         return r_lane, p_lane, c_lane, cnt_gt, cnt_pred, match_num
 
     def bench_one_submit(self, gts, preds):
-
         laneline_stats = []
         laneline_x_error_close = []
         laneline_x_error_far = []
         laneline_z_error_close = []
         laneline_z_error_far = []
         for token, pred in preds.items():
-
-            pred_lanelines = pred['lane_centerline']
-            pred_lanes = [lane['points'] for i, lane in enumerate(pred_lanelines)]
+            pred_lanelines = pred["lane_centerline"]
+            pred_lanes = [lane["points"] for i, lane in enumerate(pred_lanelines)]
             pred_category = [np.int8(1) for i, lane in enumerate(pred_lanelines)]
 
             gt = gts[token]
@@ -306,13 +393,13 @@ class LaneEval(object):
             #                                 R_vg), R_gc)
             # cam_extrinsics[0:2, 3] = 0.0
 
-            gt_lanes_packed = gt['lane_centerline']
+            gt_lanes_packed = gt["lane_centerline"]
 
             gt_lanes, gt_category = [], []
             for j, gt_lane_packed in enumerate(gt_lanes_packed):
                 # A GT lane can be either 2D or 3D
                 # if a GT lane is 3D, the height is intact from 3D GT, so keep it intact here too
-                lane = gt_lane_packed['points']
+                lane = gt_lane_packed["points"]
 
                 # extrinsic
                 # lane = np.vstack((lane, np.ones((1, lane.shape[1]))))
@@ -328,12 +415,15 @@ class LaneEval(object):
                 gt_category.append(np.int8(1))
 
             # N to N matching of lanelines
-            r_lane, p_lane, c_lane, cnt_gt, cnt_pred, match_num = self.bench(pred_lanes,
-                                                                             pred_category, 
-                                                                             gt_lanes,
-                                                                             gt_category,
-                                                                             )
-            laneline_stats.append(np.array([r_lane, p_lane, c_lane, cnt_gt, cnt_pred, match_num]))
+            r_lane, p_lane, c_lane, cnt_gt, cnt_pred, match_num = self.bench(
+                pred_lanes,
+                pred_category,
+                gt_lanes,
+                gt_category,
+            )
+            laneline_stats.append(
+                np.array([r_lane, p_lane, c_lane, cnt_gt, cnt_pred, match_num])
+            )
             # consider x_error z_error only for the matched lanes
             # if r_lane > 0 and p_lane > 0:
 
@@ -344,18 +434,24 @@ class LaneEval(object):
         laneline_z_error_close = np.array(laneline_z_error_close)
         laneline_z_error_far = np.array(laneline_z_error_far)
 
-        if np.sum(laneline_stats[:, 3])!= 0:
+        if np.sum(laneline_stats[:, 3]) != 0:
             R_lane = np.sum(laneline_stats[:, 0]) / (np.sum(laneline_stats[:, 3]))
         else:
-            R_lane = np.sum(laneline_stats[:, 0]) / (np.sum(laneline_stats[:, 3]) + 1e-6)   # recall = TP / (TP+FN)
+            R_lane = np.sum(laneline_stats[:, 0]) / (
+                np.sum(laneline_stats[:, 3]) + 1e-6
+            )  # recall = TP / (TP+FN)
         if np.sum(laneline_stats[:, 4]) != 0:
             P_lane = np.sum(laneline_stats[:, 1]) / (np.sum(laneline_stats[:, 4]))
         else:
-            P_lane = np.sum(laneline_stats[:, 1]) / (np.sum(laneline_stats[:, 4]) + 1e-6)   # precision = TP / (TP+FP)
+            P_lane = np.sum(laneline_stats[:, 1]) / (
+                np.sum(laneline_stats[:, 4]) + 1e-6
+            )  # precision = TP / (TP+FP)
         if np.sum(laneline_stats[:, 5]) != 0:
             C_lane = np.sum(laneline_stats[:, 2]) / (np.sum(laneline_stats[:, 5]))
         else:
-            C_lane = np.sum(laneline_stats[:, 2]) / (np.sum(laneline_stats[:, 5]) + 1e-6)   # category_accuracy
+            C_lane = np.sum(laneline_stats[:, 2]) / (
+                np.sum(laneline_stats[:, 5]) + 1e-6
+            )  # category_accuracy
         if R_lane + P_lane != 0:
             F_lane = 2 * R_lane * P_lane / (R_lane + P_lane)
         else:
@@ -364,5 +460,6 @@ class LaneEval(object):
         output_stats.append(F_lane)
 
         return output_stats[0]
+
 
 f1 = LaneEval()

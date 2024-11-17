@@ -7,12 +7,12 @@ from mmdet.core.bbox.transforms import bbox_cxcywh_to_xyxy
 
 
 def chamfer_distance(pred, gt):
-    '''
+    """
     Args:
     pred: [num_points, 2]
     gt: [num_gt, 2]
     Out: torch.FloatTensor of shape (1, )
-    '''
+    """
     # [num_points, num_gt]
     dist_mat = torch.cdist(pred, gt, p=2)
     # [num_points]
@@ -33,11 +33,11 @@ def chamfer_distance(pred, gt):
 @MATCH_COST.register_module()
 class ClsSigmoidCost:
     """ClsSoftmaxCost.
-     Args:
-         weight (int | float, optional): loss_weight
+    Args:
+        weight (int | float, optional): loss_weight
     """
 
-    def __init__(self, weight=1.):
+    def __init__(self, weight=1.0):
         self.weight = weight
 
     def __call__(self, cls_pred, gt_labels):
@@ -61,11 +61,11 @@ class ClsSigmoidCost:
 @MATCH_COST.register_module()
 class LinesFixNumChamferCost(object):
     """BBox3DL1Cost.
-     Args:
-         weight (int | float, optional): loss_weight
+    Args:
+        weight (int | float, optional): loss_weight
     """
 
-    def __init__(self, weight=1.):
+    def __init__(self, weight=1.0):
         self.weight = weight
 
     def __call__(self, lines_pred, gt_lines):
@@ -82,13 +82,14 @@ class LinesFixNumChamferCost(object):
 
         num_gts, num_bboxes = gt_lines.size(0), lines_pred.size(0)
 
-        dist_mat = lines_pred.new_full((num_bboxes, num_gts),
-                                       1.0,)
+        dist_mat = lines_pred.new_full(
+            (num_bboxes, num_gts),
+            1.0,
+        )
 
         for i in range(num_bboxes):
             for j in range(num_gts):
-                dist_mat[i, j] = chamfer_distance(
-                    lines_pred[i], gt_lines[j])
+                dist_mat[i, j] = chamfer_distance(lines_pred[i], gt_lines[j])
 
         return dist_mat * self.weight
 
@@ -96,11 +97,11 @@ class LinesFixNumChamferCost(object):
 @MATCH_COST.register_module()
 class LinesCost(object):
     """LinesL1Cost.
-     Args:
-         weight (int | float, optional): loss_weight
+    Args:
+        weight (int | float, optional): loss_weight
     """
 
-    def __init__(self, weight=1.):
+    def __init__(self, weight=1.0):
         self.weight = weight
 
     def __call__(self, lines_pred, gt_lines, **kwargs):
@@ -130,23 +131,23 @@ class LinesCost(object):
 @MATCH_COST.register_module()
 class BBoxCostC:
     """BBoxL1Cost.
-     Args:
-         weight (int | float, optional): loss_weight
-         box_format (str, optional): 'xyxy' for DETR, 'xywh' for Sparse_RCNN
-     Examples:
-         >>> from mmdet.core.bbox.match_costs.match_cost import BBoxL1Cost
-         >>> import torch
-         >>> self = BBoxL1Cost()
-         >>> bbox_pred = torch.rand(1, 4)
-         >>> gt_bboxes= torch.FloatTensor([[0, 0, 2, 4], [1, 2, 3, 4]])
-         >>> factor = torch.tensor([10, 8, 10, 8])
-         >>> self(bbox_pred, gt_bboxes, factor)
-         tensor([[1.6172, 1.6422]])
+    Args:
+        weight (int | float, optional): loss_weight
+        box_format (str, optional): 'xyxy' for DETR, 'xywh' for Sparse_RCNN
+    Examples:
+        >>> from mmdet.core.bbox.match_costs.match_cost import BBoxL1Cost
+        >>> import torch
+        >>> self = BBoxL1Cost()
+        >>> bbox_pred = torch.rand(1, 4)
+        >>> gt_bboxes= torch.FloatTensor([[0, 0, 2, 4], [1, 2, 3, 4]])
+        >>> factor = torch.tensor([10, 8, 10, 8])
+        >>> self(bbox_pred, gt_bboxes, factor)
+        tensor([[1.6172, 1.6422]])
     """
 
-    def __init__(self, weight=1., box_format='xyxy'):
+    def __init__(self, weight=1.0, box_format="xyxy"):
         self.weight = weight
-        assert box_format in ['xyxy', 'xywh']
+        assert box_format in ["xyxy", "xywh"]
         self.box_format = box_format
 
     def __call__(self, bbox_pred, gt_bboxes):
@@ -171,24 +172,24 @@ class BBoxCostC:
 @MATCH_COST.register_module()
 class IoUCostC:
     """IoUCost.
-     Args:
-         iou_mode (str, optional): iou mode such as 'iou' | 'giou'
-         weight (int | float, optional): loss weight
-     Examples:
-         >>> from mmdet.core.bbox.match_costs.match_cost import IoUCost
-         >>> import torch
-         >>> self = IoUCost()
-         >>> bboxes = torch.FloatTensor([[1,1, 2, 2], [2, 2, 3, 4]])
-         >>> gt_bboxes = torch.FloatTensor([[0, 0, 2, 4], [1, 2, 3, 4]])
-         >>> self(bboxes, gt_bboxes)
-         tensor([[-0.1250,  0.1667],
-                [ 0.1667, -0.5000]])
+    Args:
+        iou_mode (str, optional): iou mode such as 'iou' | 'giou'
+        weight (int | float, optional): loss weight
+    Examples:
+        >>> from mmdet.core.bbox.match_costs.match_cost import IoUCost
+        >>> import torch
+        >>> self = IoUCost()
+        >>> bboxes = torch.FloatTensor([[1,1, 2, 2], [2, 2, 3, 4]])
+        >>> gt_bboxes = torch.FloatTensor([[0, 0, 2, 4], [1, 2, 3, 4]])
+        >>> self(bboxes, gt_bboxes)
+        tensor([[-0.1250,  0.1667],
+               [ 0.1667, -0.5000]])
     """
 
-    def __init__(self, iou_mode='giou', weight=1., box_format='xywh'):
+    def __init__(self, iou_mode="giou", weight=1.0, box_format="xywh"):
         self.weight = weight
         self.iou_mode = iou_mode
-        assert box_format in ['xyxy', 'xywh']
+        assert box_format in ["xyxy", "xywh"]
         self.box_format = box_format
 
     def __call__(self, bboxes, gt_bboxes):
@@ -201,25 +202,27 @@ class IoUCostC:
         Returns:
             torch.Tensor: iou_cost value with weight
         """
-        if self.box_format == 'xywh':
+        if self.box_format == "xywh":
             bboxes = bbox_cxcywh_to_xyxy(bboxes)
             gt_bboxes = bbox_cxcywh_to_xyxy(gt_bboxes)
 
         # overlaps: [num_bboxes, num_gt]
         overlaps = bbox_overlaps(
-            bboxes, gt_bboxes, mode=self.iou_mode, is_aligned=False)
+            bboxes, gt_bboxes, mode=self.iou_mode, is_aligned=False
+        )
         # The 1 is a constant that doesn't change the matching, so omitted.
         iou_cost = -overlaps
         return iou_cost * self.weight
 
+
 @MATCH_COST.register_module()
 class DynamicLinesCost(object):
     """LinesL1Cost.
-     Args:
-         weight (int | float, optional): loss_weight
+    Args:
+        weight (int | float, optional): loss_weight
     """
 
-    def __init__(self, weight=1.):
+    def __init__(self, weight=1.0):
         self.weight = weight
 
     def __call__(self, lines_pred, lines_gt, masks_pred, masks_gt):
@@ -245,13 +248,13 @@ class DynamicLinesCost(object):
         return dist_mat
 
     def cal_dist(self, x1, x2):
-        '''
-            Args:
-                x1: B1,N,2
-                x2: B2,N,2
-            Return:
-                dist_mat: B1,B2,N
-        '''
+        """
+        Args:
+            x1: B1,N,2
+            x2: B2,N,2
+        Return:
+            dist_mat: B1,B2,N
+        """
         x1 = x1.permute(1, 0, 2)
         x2 = x2.permute(1, 0, 2)
 
@@ -262,22 +265,21 @@ class DynamicLinesCost(object):
         return dist_mat
 
     def get_dynamic_line(self, mat, m1, m2):
-        '''
-            get dynamic line with difference approach
-            mat: N1xN2xnpts
-            m1: N1xnpts
-            m2: N2xnpts
-        '''
+        """
+        get dynamic line with difference approach
+        mat: N1xN2xnpts
+        m1: N1xnpts
+        m2: N2xnpts
+        """
 
         # nPxnGxnum_points
         m1 = m1.unsqueeze(1).sigmoid() > 0.5
         m2 = m2.unsqueeze(0)
 
-        valid_points_mask = (m1 + m2)/2.
+        valid_points_mask = (m1 + m2) / 2.0
 
         average_factor_mask = valid_points_mask.sum(-1) > 0
-        average_factor = average_factor_mask.masked_fill(
-            ~average_factor_mask, 1)
+        average_factor = average_factor_mask.masked_fill(~average_factor_mask, 1)
 
         # takes the average
         mat = mat * valid_points_mask
@@ -289,21 +291,21 @@ class DynamicLinesCost(object):
 @MATCH_COST.register_module()
 class BBoxLogitsCost(object):
     """BBoxLogits.
-     Args:
-         weight (int | float, optional): loss_weight
+    Args:
+        weight (int | float, optional): loss_weight
     """
 
-    def __init__(self, weight=1.):
+    def __init__(self, weight=1.0):
         self.weight = weight
 
     def calNLL(self, logits, value):
-        '''
-            Args:
-                logits: B1, 8, cls_dim
-                value: B2, 8,
-            Return:
-                log_likelihood: B1,B2,8
-        '''
+        """
+        Args:
+            logits: B1, 8, cls_dim
+            value: B2, 8,
+        Return:
+            log_likelihood: B1,B2,8
+        """
 
         logits = logits[:, None]
         value = value[None]
@@ -329,9 +331,7 @@ class BBoxLogitsCost(object):
 
 @MATCH_COST.register_module()
 class MapQueriesCost(object):
-
     def __init__(self, cls_cost, reg_cost, iou_cost=None):
-
         self.cls_cost = build_match_cost(cls_cost)
         self.reg_cost = build_match_cost(reg_cost)
 
@@ -340,28 +340,26 @@ class MapQueriesCost(object):
             self.iou_cost = build_match_cost(iou_cost)
 
     def __call__(self, preds: dict, gts: dict):
-
         # classification and bboxcost.
-        cls_cost = self.cls_cost(preds['scores'], gts['labels'])
+        cls_cost = self.cls_cost(preds["scores"], gts["labels"])
 
         # regression cost
         regkwargs = {}
-        if 'masks' in preds and 'masks' in gts:
-            assert isinstance(self.reg_cost, DynamicLinesCost), ' Issues!!'
+        if "masks" in preds and "masks" in gts:
+            assert isinstance(self.reg_cost, DynamicLinesCost), " Issues!!"
             regkwargs = {
-                'masks_pred': preds['masks'],
-                'masks_gt': gts['masks'],
+                "masks_pred": preds["masks"],
+                "masks_gt": gts["masks"],
             }
 
-        reg_cost = self.reg_cost(preds['lines'], gts['lines'], **regkwargs)
+        reg_cost = self.reg_cost(preds["lines"], gts["lines"], **regkwargs)
 
         # weighted sum of above three costs
         cost = cls_cost + reg_cost
 
         # Iou
         if self.iou_cost is not None:
-            iou_cost = self.iou_cost(preds['lines'],gts['lines'])
+            iou_cost = self.iou_cost(preds["lines"], gts["lines"])
             cost += iou_cost
-
 
         return cost
